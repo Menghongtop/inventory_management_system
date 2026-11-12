@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} ({{ product.sku }}){% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Breadcrumb & Top Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                <a href="{% url 'product_list' %}" class="hover:underline">Products</a>
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                <span class="text-slate-600 dark:text-slate-300 font-medium">{{ product.name }}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">{{ product.name }}</h1>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider
+                    {% if product.status == 'out_of_stock' %}bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300
+                    {% elif product.status == 'low_stock' %}bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300
+                    {% else %}bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300{% endif %}">
+                    {{ product.status_label }}
+                </span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <a href="{% url 'stock_movement' %}?product={{ product.pk }}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all">
+                <i class="fa-solid fa-right-left text-xs"></i>
+                <span>Record Movement</span>
+            </a>
+            {% if is_manager %}
+            <a href="{% url 'product_edit' pk=product.pk %}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-sm transition-all">
+                <i class="fa-solid fa-pen-to-square text-xs"></i>
+                <span>Edit</span>
+            </a>
+            {% endif %}
+            {% if is_admin %}
+            <a href="{% url 'product_delete' pk=product.pk %}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 text-xs font-semibold transition-all">
+                <i class="fa-solid fa-trash-can text-xs"></i>
+                <span>Delete</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Expiry Alert Banner if applicable -->
+    {% if product.is_expired %}
+    <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900 flex items-center justify-between text-rose-800 dark:text-rose-200 shadow-sm animate-pulse">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h4 class="font-extrabold text-sm">Product Expired!</h4>
+                <p class="text-xs text-rose-700 dark:text-rose-300 mt-0.5">This product reached its expiration date on <strong>{{ product.expiry_date|date:"F d, Y" }}</strong> ({{ product.days_expired }} days ago). Quarantine or dispose of remaining stock.</p>
+            </div>
+        </div>
+        <a href="{% url 'stock_movement' %}?product={{ product.pk }}" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex-shrink-0 shadow-sm">
+            Stock Out / Dispose
+        </a>
+    </div>
+    {% elif product.is_expiring_soon %}
+    <div class="p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-900 flex items-center justify-between text-orange-900 dark:text-orange-200 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-orange-500 text-white flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-hourglass-half"></i>
+            </div>
+            <div>
+                <h4 class="font-extrabold text-sm">Product Expiring Soon</h4>
+                <p class="text-xs text-orange-800 dark:text-orange-300 mt-0.5">Expires in <strong>{{ product.days_until_expiry }} days</strong> ({{ product.expiry_date|date:"F d, Y" }}). Prioritize sales or promotional dispatch.</p>
+            </div>
+        </div>
+        <a href="{% url 'stock_movement' %}?product={{ product.pk }}" class="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold flex-shrink-0 shadow-sm">
+            Dispatch Now
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Product Metrics Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <!-- Stock Level Card -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Stock</span>
+            <div class="mt-2 flex items-baseline gap-2">
+                <h3 class="text-3xl font-extrabold text-slate-900 dark:text-white">{{ product.quantity }}</h3>
+                <span class="text-sm font-semibold text-slate-500">{{ product.unit }}</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">
+                Min threshold: <span class="font-bold text-slate-700 dark:text-slate-300">{{ product.reorder_level }} {{ product.unit }}</span>
+            </p>
+        </div>
+
+        <!-- Pricing & Margin Card -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Selling / Cost</span>
+            <div class="mt-2 flex items-baseline gap-2">
+                <h3 class="text-3xl font-extrabold text-slate-900 dark:text-white">${{ product.selling_price }}</h3>
+                <span class="text-xs text-slate-400">/ unit</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">
+                Cost: <span class="font-semibold text-slate-700 dark:text-slate-300">${{ product.cost_price }}</span> &bull; 
+                Profit: <span class="font-bold text-emerald-600">+${{ product.potential_profit|floatformat:2 }}</span>
+            </p>
+        </div>
+
+        <!-- Total Asset Value -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Stock Valuation</span>
+            <div class="mt-2">
+                <h3 class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">${{ product.total_retail_value|floatformat:2 }}</h3>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">
+                Cost capital: ${{ product.total_cost_value|floatformat:2 }}
+            </p>
+        </div>
+
+        <!-- Location & Status -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Storage Info</span>
+            <div class="mt-2 flex items-center gap-2">
+                <i class="fa-solid fa-location-dot text-indigo-500"></i>
+                <span class="text-sm font-bold text-slate-900 dark:text-white">{{ product.location|default:"Unassigned" }}</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">
+                SKU: <span class="font-mono font-semibold text-slate-700 dark:text-slate-300">{{ product.sku }}</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Product Info Details & Quick Adjustment -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Details Card -->
+        <div class="lg:col-span-2 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+            <h3 class="font-bold text-base text-slate-900 dark:text-white">Product Information</h3>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                    <span class="text-xs text-slate-400 block mb-0.5">Category</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">{{ product.category.name|default:"Uncategorized" }}</span>
+                    {% if product.is_perishable %}
+                    <span class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500 text-white">
+                        <i class="fa-solid fa-bolt text-[7px]"></i> Fast Expire
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                    <span class="text-xs text-slate-400 block mb-0.5">Supplier</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">{{ product.supplier.name|default:"None assigned" }}</span>
+                </div>
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                    <span class="text-xs text-slate-400 block mb-0.5">Batch / Lot #</span>
+                    <span class="font-semibold font-mono text-slate-800 dark:text-slate-200">{{ product.batch_no|default:"N/A" }}</span>
+                </div>
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                    <span class="text-xs text-slate-400 block mb-0.5">Expiry Date</span>
+                    {% if product.expiry_date %}
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">{{ product.expiry_date|date:"M d, Y" }}</span>
+                    <span class="block text-[11px] font-bold mt-0.5 {% if product.is_expired %}text-rose-600{% elif product.is_expiring_soon %}text-orange-600{% else %}text-emerald-600{% endif %}">
+                        {{ product.expiry_status_label }}
+                    </span>
+                    {% else %}
+                    <span class="text-slate-400">Non-perishable</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if product.description %}
+            <div>
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Description</span>
+                <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                    {{ product.description }}
+                </p>
+            </div>
+            {% endif %}
+
+            <div class="pt-2 text-xs text-slate-400 flex items-center justify-between">
+                <span>Created: {{ product.created_at|date:"M d, Y H:i" }}</span>
+                <span>Last Updated: {{ product.updated_at|date:"M d, Y H:i" }}</span>
+            </div>
+        </div>
+
+        <!-- Quick Audit Adjustment (Manager & Admin only) -->
+        <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-sliders text-indigo-500"></i>
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white">Audit Adjustment</h3>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                    Directly reconcile stock after physical warehouse count or write-offs.
+                </p>
+
+                {% if is_manager %}
+                <form method="POST" action="{% url 'product_adjust_stock' pk=product.pk %}" class="space-y-3">
+                    {% csrf_token %}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Target Quantity</label>
+                        {{ adj_form.quantity }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Reason / Note</label>
+                        {{ adj_form.reason }}
+                    </div>
+                    <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white font-semibold text-xs shadow-md transition-all">
+                        Update Stock Balance
+                    </button>
+                </form>
+                {% else %}
+                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-xs text-slate-400 text-center">
+                    Staff role can view stock levels and record regular movements. Manager role required for direct inventory reconciliations.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Movement History Table for this product -->
+    <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <h3 class="font-bold text-base text-slate-900 dark:text-white mb-4">Stock Movement History</h3>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3 px-4">Timestamp</th>
+                        <th class="py-3 px-4">Type</th>
+                        <th class="py-3 px-4">Qty</th>
+                        <th class="py-3 px-4">Before / After</th>
+                        <th class="py-3 px-4">Reference</th>
+                        <th class="py-3 px-4">Staff</th>
+                        <th class="py-3 px-4">Notes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for t in transactions %}
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 text-xs">
+                        <td class="py-3 px-4 text-slate-500">{{ t.created_at|date:"M d, Y H:i" }}</td>
+                        <td class="py-3 px-4">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                {% if t.transaction_type == 'IN' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300
+                                {% elif t.transaction_type == 'OUT' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300
+                                {% else %}bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300{% endif %}">
+                                {{ t.get_transaction_type_display }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 font-bold {% if t.transaction_type == 'IN' %}text-emerald-600{% elif t.transaction_type == 'OUT' %}text-indigo-600{% else %}text-purple-600{% endif %}">
+                            {% if t.transaction_type == 'IN' %}+{% elif t.transaction_type == 'OUT' %}-{% endif %}{{ t.quantity }}
+                        </td>
+                        <td class="py-3 px-4 text-slate-500">
+                            {{ t.quantity_before }} &rarr; <span class="font-bold text-slate-800 dark:text-slate-200">{{ t.quantity_after }}</span>
+                        </td>
+                        <td class="py-3 px-4 font-mono text-slate-500">{{ t.reference_no|default:"—" }}</td>
+                        <td class="py-3 px-4 text-slate-700 dark:text-slate-300">{{ t.created_by.username|default:"System" }}</td>
+                        <td class="py-3 px-4 text-slate-500 max-w-xs truncate">{{ t.notes|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-xs text-slate-400">
+                            No stock movements recorded for this item yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

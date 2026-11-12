@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | StockPro{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                <a href="{% url 'product_list' %}" class="hover:underline">Products</a>
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                <span class="text-slate-600 dark:text-slate-300 font-medium">{{ title }}</span>
+            </div>
+            <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">{{ title }}</h1>
+        </div>
+        <a href="{% url 'product_list' %}" class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+            Cancel
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 text-xs">
+                <span class="font-bold">Please correct the following errors:</span>
+                <ul class="list-disc pl-5 mt-1 space-y-1">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ field.label }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Section 1: Product Identifiers -->
+            <div>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Basic Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">SKU Code *</label>
+                        {{ form.sku }}
+                        <span class="text-[11px] text-slate-400 mt-1 block">Unique product identifier</span>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Product Name *</label>
+                        {{ form.name }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Category</label>
+                        {{ form.category }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Supplier</label>
+                        {{ form.supplier }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Pricing & Margins -->
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Pricing & Economics</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Cost Price ($) *</label>
+                        {{ form.cost_price }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Selling Price ($) *</label>
+                        {{ form.selling_price }}
+                    </div>
+                    <!-- Live Margin Preview Card -->
+                    <div class="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 flex flex-col justify-center">
+                        <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Estimated Unit Margin</span>
+                        <div class="flex items-baseline gap-2 mt-1">
+                            <span id="marginAmount" class="text-xl font-extrabold text-indigo-700 dark:text-indigo-300">$0.00</span>
+                            <span id="marginPercent" class="text-xs font-bold text-emerald-600">(0.0%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Inventory Levels & Unit -->
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Inventory Quantities</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Quantity on Hand *</label>
+                        {{ form.quantity }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Reorder Alert Level *</label>
+                        {{ form.reorder_level }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Unit of Measure</label>
+                        {{ form.unit }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4: Expiration & Batch Tracking (Perishable Goods) -->
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Expiration & Batch Tracking</h3>
+                    <span class="text-[11px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                        <i class="fa-solid fa-hourglass-half text-[10px]"></i> For perishable or shelf-life critical goods
+                    </span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Expiration Date (Optional)</label>
+                        {{ form.expiry_date }}
+                        <span class="text-[11px] text-slate-400 mt-1 block">Leave empty for non-perishable hardware/tools</span>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Batch / Lot Number (Optional)</label>
+                        {{ form.batch_no }}
+                        <span class="text-[11px] text-slate-400 mt-1 block">Traceability code e.g. LOT-2026-X1</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5: Storage & Details -->
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Location & Details</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Warehouse Location</label>
+                        {{ form.location }}
+                    </div>
+                    <div class="flex items-center gap-3 pt-6">
+                        {{ form.is_active }}
+                        <label for="{{ form.is_active.id_for_label }}" class="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                            Active in catalog
+                        </label>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Description / Specifications</label>
+                        {{ form.description }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
+                <a href="{% url 'product_list' %}" class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                    Cancel
+                </a>
+                <button type="submit" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/30 transition-all">
+                    Save Product
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    // Live margin calculation
+    const costInput = document.getElementById('id_cost_price');
+    const sellInput = document.getElementById('id_selling_price');
+    const marginAmount = document.getElementById('marginAmount');
+    const marginPercent = document.getElementById('marginPercent');
+
+    function updateMargin() {
+        const cost = parseFloat(costInput.value) || 0;
+        const sell = parseFloat(sellInput.value) || 0;
+        const margin = sell - cost;
+        const pct = sell > 0 ? ((margin / sell) * 100).toFixed(1) : '0.0';
+
+        marginAmount.textContent = `$${margin.toFixed(2)}`;
+        marginPercent.textContent = `(${pct}%)`;
+        if (margin < 0) {
+            marginPercent.className = 'text-xs font-bold text-rose-500';
+        } else {
+            marginPercent.className = 'text-xs font-bold text-emerald-600';
+        }
+    }
+
+    if (costInput && sellInput) {
+        costInput.addEventListener('input', updateMargin);
+        sellInput.addEventListener('input', updateMargin);
+        updateMargin();
+    }
+</script>
+{% endblock %}

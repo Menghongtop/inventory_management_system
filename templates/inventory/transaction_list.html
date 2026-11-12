@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Stock Movement History | StockPro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Movement Audit History</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Complete immutable audit trail of all warehouse stock receipts, sales, and corrections.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'export_transactions_csv' %}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-sm transition-all">
+                <i class="fa-solid fa-file-csv text-emerald-600 text-sm"></i>
+                <span>Export Audit CSV</span>
+            </a>
+            <a href="{% url 'stock_movement' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>New Movement</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <form method="GET" class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+            <div class="flex-1 relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                </span>
+                <input type="text" name="q" value="{{ query }}" placeholder="Search by SKU, product name, or reference doc #..."
+                    class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Movement Type filter -->
+            <select name="type" onchange="this.form.submit()"
+                class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">All Movement Types</option>
+                <option value="IN" {% if selected_type == 'IN' %}selected{% endif %}>Stock In (Restock)</option>
+                <option value="OUT" {% if selected_type == 'OUT' %}selected{% endif %}>Stock Out (Dispatch)</option>
+                <option value="ADJUST" {% if selected_type == 'ADJUST' %}selected{% endif %}>Adjustment (Audit)</option>
+            </select>
+
+            <button type="submit" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold">
+                Filter
+            </button>
+            {% if query or selected_type %}
+            <a href="{% url 'transaction_list' %}" class="px-3 py-2 rounded-xl text-slate-500 hover:text-slate-700 text-xs font-semibold flex items-center justify-center">
+                Clear
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Table Card -->
+    <div class="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-6">Timestamp</th>
+                        <th class="py-3.5 px-4">Product</th>
+                        <th class="py-3.5 px-4 text-center">Type</th>
+                        <th class="py-3.5 px-4 text-center">Qty Delta</th>
+                        <th class="py-3.5 px-4 text-center">Balance</th>
+                        <th class="py-3.5 px-4">Ref Document</th>
+                        <th class="py-3.5 px-4">Authorized By</th>
+                        <th class="py-3.5 px-6">Notes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for t in page_obj %}
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 text-xs">
+                        <td class="py-4 px-6 text-slate-500 whitespace-nowrap">{{ t.created_at|date:"M d, Y H:i" }}</td>
+                        <td class="py-4 px-4">
+                            <a href="{% url 'product_detail' pk=t.product.pk %}" class="font-bold text-slate-900 dark:text-white hover:text-indigo-600 transition-colors">
+                                {{ t.product.name }}
+                            </a>
+                            <span class="block text-[11px] font-mono text-indigo-500">{{ t.product.sku }}</span>
+                        </td>
+                        <td class="py-4 px-4 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                {% if t.transaction_type == 'IN' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300
+                                {% elif t.transaction_type == 'OUT' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300
+                                {% else %}bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300{% endif %}">
+                                {{ t.get_transaction_type_display }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 text-center font-bold {% if t.transaction_type == 'IN' %}text-emerald-600{% elif t.transaction_type == 'OUT' %}text-indigo-600{% else %}text-purple-600{% endif %}">
+                            {% if t.transaction_type == 'IN' %}+{% elif t.transaction_type == 'OUT' %}-{% endif %}{{ t.quantity }}
+                            {% if t.transaction_type == 'OUT' and t.total_profit > 0 %}
+                            <span class="block text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5" title="Gross Profit from this sale">
+                                +${{ t.total_profit|floatformat:2 }} profit
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-4 px-4 text-center text-slate-500 whitespace-nowrap">
+                            {{ t.quantity_before }} &rarr; <span class="font-bold text-slate-800 dark:text-slate-200">{{ t.quantity_after }}</span>
+                        </td>
+                        <td class="py-4 px-4 font-mono text-slate-500">{{ t.reference_no|default:"—" }}</td>
+                        <td class="py-4 px-4">
+                            <span class="font-semibold text-slate-700 dark:text-slate-300">{{ t.created_by.username|default:"System" }}</span>
+                        </td>
+                        <td class="py-4 px-6 text-slate-500 max-w-xs truncate">{{ t.notes|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="py-12 text-center text-xs text-slate-400">
+                            No movement records match the selected criteria.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+            <div>
+                Page <span class="font-bold text-slate-900 dark:text-white">{{ page_obj.number }}</span> of {{ page_obj.paginator.num_pages }}
+            </div>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}&q={{ query }}&type={{ selected_type }}" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">Previous</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&q={{ query }}&type={{ selected_type }}" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

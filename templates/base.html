@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang|default:'en' }}" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ t.app_name }}{% endblock %} | {{ t.app_name }}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+
+    <!-- Anti-flicker immediate theme initialization -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'system';
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'dark' || (savedTheme === 'system' && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <!-- Google Fonts with Khmer (Kantumruy Pro) & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Kantumruy Pro"', '"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Kantumruy Pro', 'Plus Jakarta Sans', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+    </style>
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row antialiased selection:bg-brand-500 selection:text-white transition-colors duration-200">
+
+    <!-- Mobile Navigation Toggle Bar -->
+    <header class="md:hidden flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-30 sticky top-0">
+        <a href="{% url 'dashboard' %}" class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/30">
+                <i class="fa-solid fa-boxes-stacked text-sm"></i>
+            </div>
+            <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">{{ t.app_name }}</span>
+        </a>
+        <div class="flex items-center gap-2">
+            <!-- Mobile Language Switcher -->
+            {% if current_lang == 'km' %}
+            <a href="{% url 'switch_language' 'en' %}" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <span>🇬🇧</span><span>EN</span>
+            </a>
+            {% else %}
+            <a href="{% url 'switch_language' 'km' %}" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <span>🇰🇭</span><span>ខ្មែរ</span>
+            </a>
+            {% endif %}
+
+            <!-- Mobile Quick Theme Button -->
+            <button onclick="cycleTheme()" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i id="mobileThemeIcon" class="fa-solid fa-circle-half-stroke"></i>
+            </button>
+
+            <button id="mobileMenuBtn" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sidebar Backdrop for mobile -->
+    <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-30 hidden md:hidden"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out md:static md:h-screen md:min-h-screen">
+        <!-- Logo -->
+        <div class="h-16 flex items-center justify-between px-6 border-b border-slate-200/80 dark:border-slate-800/80">
+            <a href="{% url 'dashboard' %}" class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+                    <i class="fa-solid fa-boxes-stacked text-base"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white leading-none">{{ t.app_name }}</h1>
+                    <span class="text-[10px] font-semibold text-indigo-500 tracking-wider uppercase">{{ t.inventory_v1 }}</span>
+                </div>
+            </a>
+            <button id="closeSidebarBtn" class="md:hidden text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+            <div class="px-3 pb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{{ t.main }}</div>
+            
+            <a href="{% url 'dashboard' %}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if request.resolver_match.url_name == 'dashboard' %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                <span>{{ t.dashboard }}</span>
+            </a>
+
+            <a href="{% url 'product_list' %}" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if 'product' in request.resolver_match.url_name and request.resolver_match.url_name != 'product_create' %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-box-archive w-5 text-center"></i>
+                    <span>{{ t.products }}</span>
+                </div>
+                {% if total_alert_count > 0 %}
+                <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-500/20 text-amber-500">{{ total_alert_count }}</span>
+                {% endif %}
+            </a>
+
+            <div class="pt-4 px-3 pb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{{ t.stock_control }}</div>
+
+            <a href="{% url 'sales_order_create' %}" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if request.resolver_match.url_name == 'sales_order_create' %}bg-emerald-600 text-white shadow-lg shadow-emerald-600/30{% else %}text-emerald-700 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-cart-shopping w-5 text-center"></i>
+                    <span class="font-bold">{{ t.pos_checkout }}</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-600 text-white">POS</span>
+            </a>
+
+            <a href="{% url 'sales_order_list' %}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if 'sales_order' in request.resolver_match.url_name and request.resolver_match.url_name != 'sales_order_create' %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i>
+                <span>{{ t.sales_orders }}</span>
+            </a>
+
+            <a href="{% url 'stock_movement' %}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if request.resolver_match.url_name == 'stock_movement' %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <i class="fa-solid fa-right-left w-5 text-center"></i>
+                <span>{{ t.stock_in_out }}</span>
+            </a>
+
+            <a href="{% url 'transaction_list' %}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if request.resolver_match.url_name == 'transaction_list' %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i>
+                <span>{{ t.movement_history }}</span>
+            </a>
+
+            <div class="pt-4 px-3 pb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{{ t.catalog_partners }}</div>
+
+            <a href="{% url 'category_list' %}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if 'category' in request.resolver_match.url_name %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <i class="fa-solid fa-tags w-5 text-center"></i>
+                <span>{{ t.categories }}</span>
+            </a>
+
+            <a href="{% url 'supplier_list' %}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if 'supplier' in request.resolver_match.url_name %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <i class="fa-solid fa-truck-field w-5 text-center"></i>
+                <span>{{ t.suppliers }}</span>
+            </a>
+
+            <a href="{% url 'customer_list' %}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if 'customer' in request.resolver_match.url_name %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <i class="fa-solid fa-address-book w-5 text-center"></i>
+                <span>{{ t.customers }}</span>
+            </a>
+
+            {% if is_admin %}
+            <div class="pt-4 px-3 pb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{{ t.administration }}</div>
+
+            <a href="{% url 'user_list' %}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all {% if request.resolver_match.url_name == 'user_list' %}bg-indigo-600 text-white shadow-lg shadow-indigo-600/30{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                <i class="fa-solid fa-users-gear w-5 text-center"></i>
+                <span>{{ t.user_roles }}</span>
+            </a>
+            <a href="/admin/" target="_blank" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-screwdriver-wrench w-5 text-center"></i>
+                    <span>{{ t.django_admin }}</span>
+                </div>
+                <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-400"></i>
+            </a>
+            {% endif %}
+        </nav>
+
+        <!-- Current User Card & Logout -->
+        <div class="p-3 border-t border-slate-200 dark:border-slate-800">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold flex items-center justify-center shadow-md text-sm">
+                        {{ request.user.username|slice:":2"|upper }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ request.user.username }}</p>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold 
+                            {% if is_admin %}bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300
+                            {% elif is_manager %}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300
+                            {% else %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300{% endif %}">
+                            {% if current_lang == 'km' %}
+                                {% if is_admin %}អ្នកគ្រប់គ្រងប្រព័ន្ធ{% elif is_manager %}អ្នកគ្រប់គ្រងស្តុក{% else %}បុគ្គលិក{% endif %}
+                            {% else %}
+                                {{ user_role|title }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <a href="{% url 'logout' %}" title="{{ t.logout }}" class="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+        <!-- Top Header Bar -->
+        <header class="h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-6 flex items-center justify-between sticky top-0 z-20">
+            <div class="flex items-center gap-4">
+                <div class="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <i class="fa-solid fa-database text-xs text-emerald-500"></i>
+                    <span class="hidden sm:inline">{{ t.database }}:</span>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                        MySQL Engine
+                    </span>
+                </div>
+            </div>
+
+            <!-- Header Quick Actions -->
+            <div class="flex items-center gap-3">
+                <!-- Language Switcher Pill (EN / KM) -->
+                <div class="relative inline-block text-left">
+                    <div class="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold">
+                        <a href="{% url 'switch_language' 'en' %}"
+                            class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 {% if current_lang == 'en' %}bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold{% else %}text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                            <span>🇬🇧</span>
+                            <span>EN</span>
+                        </a>
+                        <a href="{% url 'switch_language' 'km' %}"
+                            class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 {% if current_lang == 'km' %}bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold{% else %}text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white{% endif %}">
+                            <span>🇰🇭</span>
+                            <span>ខ្មែរ</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 3-Way System / Dark / Light Theme Toggle -->
+                <div class="hidden sm:flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 text-xs font-medium">
+                    <!-- Light (White Mode) Button -->
+                    <button type="button" onclick="setTheme('light')" id="themeBtnLight"
+                        class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                        title="White / Light Mode">
+                        <i class="fa-solid fa-sun text-amber-500"></i>
+                        <span>{{ t.light_mode }}</span>
+                    </button>
+                    <!-- Dark Mode Button -->
+                    <button type="button" onclick="setTheme('dark')" id="themeBtnDark"
+                        class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                        title="Dark Mode">
+                        <i class="fa-solid fa-moon text-indigo-400"></i>
+                        <span>{{ t.dark_mode }}</span>
+                    </button>
+                    <!-- System Mode (Auto) Button -->
+                    <button type="button" onclick="setTheme('system')" id="themeBtnSystem"
+                        class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                        title="Sync with System Theme">
+                        <i class="fa-solid fa-desktop text-slate-400"></i>
+                        <span>{{ t.system_mode }}</span>
+                    </button>
+                </div>
+
+                <!-- Low Stock Alert Bell -->
+                <a href="{% url 'product_list' %}?status=low_stock" class="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title="View Low Stock Items">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    {% if total_alert_count > 0 %}
+                    <span class="absolute top-1 right-1 flex h-4 w-4">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-rose-500 text-white text-[10px] font-bold items-center justify-center">
+                            {{ total_alert_count }}
+                        </span>
+                    </span>
+                    {% endif %}
+                </a>
+
+                <!-- Quick Movement Button -->
+                <a href="{% url 'stock_movement' %}" class="hidden md:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span>{{ t.quick_transaction }}</span>
+                </a>
+
+                {% if is_manager %}
+                <!-- Add Product Button -->
+                <a href="{% url 'product_create' %}" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md shadow-indigo-600/25 transition-all">
+                    <i class="fa-solid fa-box-open text-xs"></i>
+                    <span>{{ t.add_product }}</span>
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Flash Messages -->
+        {% if messages %}
+        <div class="px-6 pt-4 space-y-2">
+            {% for message in messages %}
+            <div class="flex items-center justify-between p-4 rounded-xl border text-sm font-medium shadow-sm transition-all
+                {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300
+                {% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-900 dark:text-amber-300
+                {% elif message.tags == 'info' %}bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/40 dark:border-blue-900 dark:text-blue-300
+                {% else %}bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300{% endif %}">
+                <div class="flex items-center gap-3">
+                    {% if message.tags == 'error' %}
+                    <i class="fa-solid fa-circle-exclamation text-rose-500 text-base"></i>
+                    {% elif message.tags == 'warning' %}
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 text-base"></i>
+                    {% elif message.tags == 'info' %}
+                    <i class="fa-solid fa-circle-info text-blue-500 text-base"></i>
+                    {% else %}
+                    <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
+                    {% endif %}
+                    <span>{{ message }}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Page Main Body -->
+        <main class="flex-1 p-6 md:p-8">
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
+            StockPro &copy; 2026. Built with Django, MySQL & Tailwind CSS. Authentication & Role-Based Access Enabled.
+        </footer>
+    </div>
+
+    <!-- Theme management & Mobile Navigation Script -->
+    <script>
+        const activeThemeClasses = ['bg-white', 'dark:bg-slate-700', 'text-indigo-600', 'dark:text-indigo-400', 'shadow-sm', 'font-bold'];
+        const inactiveThemeClasses = ['text-slate-500', 'dark:text-slate-400'];
+
+        function updateThemeButtons(currentTheme) {
+            const btnLight = document.getElementById('themeBtnLight');
+            const btnDark = document.getElementById('themeBtnDark');
+            const btnSystem = document.getElementById('themeBtnSystem');
+            const mobileIcon = document.getElementById('mobileThemeIcon');
+
+            [btnLight, btnDark, btnSystem].forEach(btn => {
+                if (!btn) return;
+                btn.classList.remove(...activeThemeClasses);
+                btn.classList.add(...inactiveThemeClasses);
+            });
+
+            if (currentTheme === 'light' && btnLight) {
+                btnLight.classList.remove(...inactiveThemeClasses);
+                btnLight.classList.add(...activeThemeClasses);
+                if (mobileIcon) mobileIcon.className = 'fa-solid fa-sun text-amber-500';
+            } else if (currentTheme === 'dark' && btnDark) {
+                btnDark.classList.remove(...inactiveThemeClasses);
+                btnDark.classList.add(...activeThemeClasses);
+                if (mobileIcon) mobileIcon.className = 'fa-solid fa-moon text-indigo-400';
+            } else if (btnSystem) {
+                btnSystem.classList.remove(...inactiveThemeClasses);
+                btnSystem.classList.add(...activeThemeClasses);
+                if (mobileIcon) mobileIcon.className = 'fa-solid fa-desktop text-slate-400';
+            }
+        }
+
+        function setTheme(mode) {
+            localStorage.setItem('theme', mode);
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (mode === 'dark' || (mode === 'system' && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            updateThemeButtons(mode);
+        }
+
+        function cycleTheme() {
+            const current = localStorage.getItem('theme') || 'system';
+            if (current === 'light') {
+                setTheme('dark');
+            } else if (current === 'dark') {
+                setTheme('system');
+            } else {
+                setTheme('light');
+            }
+        }
+
+        // Initialize UI buttons state
+        const initialTheme = localStorage.getItem('theme') || 'system';
+        updateThemeButtons(initialTheme);
+
+        // Listen for OS system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if ((localStorage.getItem('theme') || 'system') === 'system') {
+                if (e.matches) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+        });
+
+        // Mobile sidebar
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('-translate-x-full');
+            sidebarBackdrop.classList.toggle('hidden');
+        }
+
+        if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleSidebar);
+        if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
+        if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', toggleSidebar);
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

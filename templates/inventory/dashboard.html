@@ -1,0 +1,509 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ t.dashboard }} - {{ t.inventory_overview }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">{{ t.inventory_overview }}</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ t.dashboard_subtitle }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'export_products_csv' %}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-sm transition-all">
+                <i class="fa-solid fa-file-csv text-emerald-600 text-sm"></i>
+                <span>{{ t.export_inventory_csv }}</span>
+            </a>
+            <a href="{% url 'stock_movement' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>{{ t.stock_in_out }}</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- 4 Critical Stock Numbers + Financial Valuation & Sales Profit KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <!-- Card 1: Total Products -->
+        <a href="{% url 'product_list' %}" class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ t.total_products }}</span>
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">{{ total_products }}</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                    <span>{{ total_units_count }} {{ t.total_units_on_hand }}</span>
+                    <i class="fa-solid fa-arrow-right text-[10px] text-slate-400 group-hover:translate-x-1 transition-transform"></i>
+                </p>
+            </div>
+        </a>
+
+        <!-- Card 2: Low Stock Alert -->
+        <a href="{% url 'product_list' %}?status=low_stock" class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/50 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none"></div>
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">{{ t.low_stock_alert }}</span>
+                <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-2xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">{{ low_stock_count }}</h3>
+                <p class="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1 flex items-center gap-1">
+                    <span>{{ t.under_reorder_level }}</span>
+                    <i class="fa-solid fa-arrow-right text-[10px] text-amber-500 group-hover:translate-x-1 transition-transform"></i>
+                </p>
+            </div>
+        </a>
+
+        <!-- Card 3: Out of Stock -->
+        <a href="{% url 'product_list' %}?status=out_of_stock" class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-rose-200/80 dark:border-rose-900/50 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-xl pointer-events-none"></div>
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">{{ t.out_of_stock }}</span>
+                <div class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-2xl font-extrabold text-rose-600 dark:text-rose-400 tracking-tight">{{ out_of_stock_count }}</h3>
+                <p class="text-xs text-rose-600/80 dark:text-rose-400/80 mt-1 flex items-center gap-1">
+                    <span>{{ t.urgent_restock }}</span>
+                    <i class="fa-solid fa-arrow-right text-[10px] text-rose-500 group-hover:translate-x-1 transition-transform"></i>
+                </p>
+            </div>
+        </a>
+
+        <!-- Card 4: Expire Product Alert -->
+        <a href="{% url 'product_list' %}?status=expiring_soon" class="p-5 rounded-2xl bg-white dark:bg-slate-900 border {% if total_expiry_alert_count > 0 %}border-orange-300 dark:border-orange-900/70 ring-1 ring-orange-400/30{% else %}border-slate-200/80 dark:border-slate-800{% endif %} shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-xl pointer-events-none"></div>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">{{ t.expire_product_alert }}</span>
+                    {% if total_expiry_alert_count > 0 %}
+                    <span class="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
+                    {% endif %}
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-hourglass-half"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-2xl font-extrabold {% if expired_count > 0 %}text-rose-600 dark:text-rose-400{% elif total_expiry_alert_count > 0 %}text-orange-600 dark:text-orange-400{% else %}text-slate-900 dark:text-white{% endif %} tracking-tight">
+                    {{ total_expiry_alert_count }}
+                </h3>
+                <p class="text-xs mt-1 flex items-center gap-1">
+                    {% if total_expiry_alert_count > 0 %}
+                    <span class="text-rose-600 font-semibold">{{ expired_count }} {{ t.expired }}</span>
+                    <span class="text-slate-400">&bull;</span>
+                    <span class="text-amber-600 font-semibold">{{ expiring_soon_count }} {{ t.expiring_soon }}</span>
+                    {% else %}
+                    <span class="text-emerald-600 font-semibold flex items-center gap-1">
+                        <i class="fa-solid fa-check text-[10px]"></i> Shelf life healthy
+                    </span>
+                    {% endif %}
+                </p>
+            </div>
+        </a>
+
+        <!-- Card 5: Total Stock Valuation -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ t.inventory_value }}</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-warehouse"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">${{ total_inventory_retail|floatformat:2 }}</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {{ t.cost_basis }}: <span class="font-semibold text-slate-700 dark:text-slate-300">${{ total_inventory_cost|floatformat:2 }}</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Card 6: Products Sold & Profit (NEW CARD) -->
+        <a href="{% url 'transaction_list' %}?type=OUT" class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200/90 dark:border-emerald-900/60 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{{ t.sales_profit }}</span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">
+                    +${{ total_sales_profit|floatformat:2 }}
+                </h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+                    <span>
+                        <strong class="text-slate-800 dark:text-slate-200">{{ total_products_sold }}</strong> {{ t.units_sold }}
+                    </span>
+                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
+                        {{ sales_profit_margin|floatformat:1 }}%
+                    </span>
+                </p>
+            </div>
+        </a>
+    </div>
+
+    <!-- Category-Based Stock Alerts (Easy/Fast to Expire Alerted First) -->
+    <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <div class="flex items-center gap-2">
+                    <h3 class="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-indigo-500"></i>
+                        <span>{{ t.stock_alerts_by_category }}</span>
+                    </h3>
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                        <i class="fa-solid fa-bolt text-[9px]"></i> {{ t.fast_expire_priority }}
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ t.perishable_first_desc }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{% url 'product_list' %}?status=perishable" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs font-semibold border border-amber-200/60 dark:border-amber-800/60 transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-fire text-amber-500"></i>
+                    <span>View All Perishables</span>
+                </a>
+                <a href="{% url 'category_list' %}" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all">
+                    Manage Categories
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {% for ca in category_alerts %}
+            <div class="p-4 rounded-2xl border transition-all {% if ca.is_perishable %}bg-gradient-to-br from-amber-50/50 via-white to-orange-50/30 dark:from-amber-950/20 dark:via-slate-900 dark:to-orange-950/10 border-amber-300/80 dark:border-amber-800/80 shadow-sm ring-1 ring-amber-400/20{% else %}bg-slate-50/60 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800{% endif %}">
+                <div class="flex items-start justify-between gap-2">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-bold text-sm text-slate-900 dark:text-white">{{ ca.category.name }}</h4>
+                            {% if ca.is_perishable %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-500 text-white shadow-sm flex items-center gap-1">
+                                <i class="fa-solid fa-bolt text-[8px]"></i> Perishable (Fast Expire)
+                            </span>
+                            {% endif %}
+                        </div>
+                        <span class="text-xs text-slate-400 mt-0.5 block">{{ ca.total_products }} active items</span>
+                    </div>
+                    {% if ca.total_alerts > 0 %}
+                    <span class="px-2 py-0.5 rounded-full text-xs font-extrabold bg-rose-500 text-white">
+                        {{ ca.total_alerts }} alert{{ ca.total_alerts|pluralize }}
+                    </span>
+                    {% else %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center gap-1">
+                        <i class="fa-solid fa-check text-[9px]"></i> Healthy
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Alert breakdown badges for this category -->
+                <div class="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+                    {% if ca.expired_count > 0 %}
+                    <a href="{% url 'product_list' %}?category={{ ca.category.pk }}&status=expired" class="px-2 py-0.5 rounded-md font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 hover:opacity-80 transition-opacity">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i> {{ ca.expired_count }} Expired
+                    </a>
+                    {% endif %}
+
+                    {% if ca.expiring_soon_count > 0 %}
+                    <a href="{% url 'product_list' %}?category={{ ca.category.pk }}&status=expiring_soon" class="px-2 py-0.5 rounded-md font-bold bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 hover:opacity-80 transition-opacity">
+                        <i class="fa-solid fa-hourglass-half text-[10px]"></i> {{ ca.expiring_soon_count }} Expiring Soon
+                    </a>
+                    {% endif %}
+
+                    {% if ca.out_of_stock_count > 0 %}
+                    <a href="{% url 'product_list' %}?category={{ ca.category.pk }}&status=out_of_stock" class="px-2 py-0.5 rounded-md font-bold bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 hover:opacity-80 transition-opacity">
+                        {{ ca.out_of_stock_count }} Out of Stock
+                    </a>
+                    {% endif %}
+
+                    {% if ca.low_stock_count > 0 %}
+                    <a href="{% url 'product_list' %}?category={{ ca.category.pk }}&status=low_stock" class="px-2 py-0.5 rounded-md font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 hover:opacity-80 transition-opacity">
+                        {{ ca.low_stock_count }} Low Stock
+                    </a>
+                    {% endif %}
+
+                    {% if ca.total_alerts == 0 %}
+                    <span class="text-[11px] text-slate-400">No stock or expiry issues detected.</span>
+                    {% endif %}
+                </div>
+
+                <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                    <span class="text-slate-400">Priority rank: {{ ca.alert_priority }}</span>
+                    <a href="{% url 'product_list' %}?category={{ ca.category.pk }}" class="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                        <span>View category</span>
+                        <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-full py-8 text-center text-xs text-slate-400">
+                No categories configured yet.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Analytics Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 7-Day Movement Trend (Bar Chart) -->
+        <div class="lg:col-span-2 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white">{{ t.stock_flow_7days }}</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ t.stock_flow_desc }}</p>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> {{ t.stock_in }}
+                    </span>
+                    <span class="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> {{ t.stock_out }}
+                    </span>
+                </div>
+            </div>
+            <div class="h-64">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Category Distribution (Doughnut Chart) -->
+        <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col">
+            <div class="mb-4">
+                <h3 class="font-bold text-base text-slate-900 dark:text-white">{{ t.categories_distribution }}</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ t.top_categories_desc }}</p>
+            </div>
+            <div class="flex-1 flex items-center justify-center min-h-[220px]">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tables Row: Urgent Stock & Expiry Alerts & Recent Transactions -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Urgent Stock & Expiry Action Card (Prioritizing Fast to Expire Categories) -->
+        <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white">{{ t.reorder_and_expiry_warnings }}</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="{% url 'product_list' %}?sort=category_priority" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                        {{ t.view_all }} ({{ total_alert_count }})
+                    </a>
+                </div>
+            </div>
+
+            {% if urgent_alert_items %}
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                {% for item in urgent_alert_items %}
+                <div class="py-3.5 flex items-center justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <a href="{% url 'product_detail' pk=item.pk %}" class="font-bold text-sm text-slate-900 dark:text-white hover:text-indigo-600 truncate">
+                                {{ item.name }}
+                            </a>
+                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">{{ item.sku }}</span>
+                            {% if item.is_perishable %}
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500 text-white flex items-center gap-1">
+                                <i class="fa-solid fa-bolt text-[8px]"></i> Fast Expire
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Status badges row -->
+                        <div class="flex flex-wrap items-center gap-2 mt-1">
+                            {% if item.category %}
+                            <span class="text-xs text-slate-500 dark:text-slate-400">
+                                {{ item.category.name }}
+                            </span>
+                            <span class="text-slate-300 dark:text-slate-600">&bull;</span>
+                            {% endif %}
+
+                            {% if item.is_expired %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 animate-pulse flex items-center gap-1">
+                                <i class="fa-solid fa-triangle-exclamation"></i> {{ item.expiry_status_label }}
+                            </span>
+                            {% elif item.is_expiring_soon %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 flex items-center gap-1">
+                                <i class="fa-solid fa-hourglass-half"></i> {{ item.expiry_status_label }}
+                            </span>
+                            {% elif item.quantity <= 0 %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+                                {{ t.out_of_stock }}
+                            </span>
+                            {% elif item.quantity <= item.reorder_level %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                                {{ t.low_stock }} ({{ item.quantity }}/{{ item.reorder_level }})
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 flex-shrink-0">
+                        <div class="text-right">
+                            <span class="text-sm font-bold {% if item.quantity <= 0 %}text-rose-600{% elif item.quantity <= item.reorder_level %}text-amber-600{% else %}text-slate-800 dark:text-slate-200{% endif %}">
+                                {{ item.quantity }} {{ item.unit }}
+                            </span>
+                            <span class="block text-[10px] text-slate-400">Min: {{ item.reorder_level }}</span>
+                        </div>
+                        <a href="{% url 'stock_movement' %}?product={{ item.pk }}" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-all">
+                            {{ t.restock }}
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-12 text-center">
+                <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-500 flex items-center justify-center mx-auto mb-3">
+                    <i class="fa-solid fa-check text-lg"></i>
+                </div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">{{ t.healthy_stock }}</p>
+                <p class="text-xs text-slate-400 mt-1">No stock shortage or expiring products detected.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Recent Transactions Log -->
+        <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-base text-slate-900 dark:text-white">{{ t.recent_transactions }}</h3>
+                <a href="{% url 'transaction_list' %}" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    {{ t.full_history }}
+                </a>
+            </div>
+
+            {% if recent_transactions %}
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                {% for tx in recent_transactions %}
+                <div class="py-3 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold
+                            {% if tx.transaction_type == 'IN' %}bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400
+                            {% elif tx.transaction_type == 'OUT' %}bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400
+                            {% else %}bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400{% endif %}">
+                            {% if tx.transaction_type == 'IN' %}<i class="fa-solid fa-arrow-down"></i>
+                            {% elif tx.transaction_type == 'OUT' %}<i class="fa-solid fa-arrow-up"></i>
+                            {% else %}<i class="fa-solid fa-sliders"></i>{% endif %}
+                        </div>
+                        <div>
+                            <span class="font-semibold text-sm text-slate-900 dark:text-white">{{ tx.product.name }}</span>
+                            <span class="block text-xs text-slate-400">By {{ tx.created_by.username|default:"System" }} &bull; {{ tx.created_at|timesince }} ago</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm font-bold {% if tx.transaction_type == 'IN' %}text-emerald-600{% elif tx.transaction_type == 'OUT' %}text-indigo-600{% else %}text-purple-600{% endif %}">
+                            {% if tx.transaction_type == 'IN' %}+{% elif tx.transaction_type == 'OUT' %}-{% endif %}{{ tx.quantity }}
+                        </span>
+                        <span class="block text-[10px] text-slate-400">Bal: {{ tx.quantity_after }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-12 text-center text-slate-400 text-xs">
+                No recent transactions recorded.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ trend_labels|json_script:"data-trend-labels" }}
+{{ trend_in|json_script:"data-trend-in" }}
+{{ trend_out|json_script:"data-trend-out" }}
+{{ cat_labels|json_script:"data-cat-labels" }}
+{{ cat_counts|json_script:"data-cat-counts" }}
+
+<script>
+    const trendLabels = JSON.parse(document.getElementById('data-trend-labels').textContent);
+    const trendIn = JSON.parse(document.getElementById('data-trend-in').textContent);
+    const trendOut = JSON.parse(document.getElementById('data-trend-out').textContent);
+    const catLabels = JSON.parse(document.getElementById('data-cat-labels').textContent);
+    const catCounts = JSON.parse(document.getElementById('data-cat-counts').textContent);
+
+    // 7-Day Trend Chart
+    const trendCanvas = document.getElementById('trendChart');
+    if (trendCanvas) {
+        const trendCtx = trendCanvas.getContext('2d');
+        new Chart(trendCtx, {
+            type: 'bar',
+            data: {
+                labels: trendLabels,
+                datasets: [
+                    {
+                        label: 'Stock In',
+                        data: trendIn,
+                        backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                        borderRadius: 6,
+                    },
+                    {
+                        label: 'Stock Out',
+                        data: trendOut,
+                        backgroundColor: 'rgba(99, 102, 241, 0.85)',
+                        borderRadius: 6,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+
+    // Categories Doughnut Chart
+    const catCanvas = document.getElementById('categoryChart');
+    if (catCanvas) {
+        const catCtx = catCanvas.getContext('2d');
+        if (catLabels && catLabels.length > 0) {
+            new Chart(catCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catCounts,
+                        backgroundColor: [
+                            '#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        } else {
+            catCanvas.parentElement.innerHTML = '<p class="text-xs text-slate-400">No categories added yet.</p>';
+        }
+    }
+</script>
+{% endblock %}
