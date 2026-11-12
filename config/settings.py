@@ -1,6 +1,8 @@
+import dj_database_url
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -63,7 +65,7 @@ FALLBACK_TO_SQLITE = os.getenv('FALLBACK_TO_SQLITE', 'True') == 'True'
 
 # Check if MySQL is connectable with given credentials
 use_mysql = False
-if DB_ENGINE == 'mysql':
+if DB_ENGINE == 'mysql' and not os.getenv('DATABASE_URL'):
     try:
         import pymysql
         pymysql.install_as_MySQLdb()
@@ -85,8 +87,15 @@ if DB_ENGINE == 'mysql':
         print(f"[!] Notice: MySQL not reachable with user='{DB_USER}' at {DB_HOST}:{DB_PORT}. ({exc})")
         print("[!] Falling back to SQLite for local development preview until MySQL credentials are set in .env.")
         use_mysql = False
+if os.getenv('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.parse(
+            os.environ['DATABASE_URL'],
+            conn_max_age=600
+        )
+    }
 
-if use_mysql:
+elif use_mysql:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
@@ -101,6 +110,7 @@ if use_mysql:
             }
         }
     }
+
 else:
     DATABASES = {
         'default': {
