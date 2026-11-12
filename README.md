@@ -1,3 +1,6 @@
+```python manage.py runserver```
+
+
 # StockPro - Modern Inventory Management System
 
 A full-stack, enterprise-grade **Inventory Management System** built with **Django**, **MySQL**, **Tailwind CSS**, and **Chart.js**. Featuring authentication, role-based authorization (Admin, Manager, Staff), real-time low-stock tracking, automated movements audit, and interactive analytics.
