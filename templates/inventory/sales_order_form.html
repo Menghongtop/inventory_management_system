@@ -9,18 +9,24 @@
     <div class="flex items-center justify-between">
         <div>
             <div class="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                <a href="{% url 'sales_order_list' %}" class="hover:underline">{{ t.sales_orders }}</a>
+                <a href="{% url 'sales_order_list' %}" class="hover:underline">{{ t.sales_orders|default:"Sales & Invoices" }}</a>
                 <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                <span class="text-slate-600 dark:text-slate-300 font-medium">{{ t.pos_checkout }}</span>
+                <span class="text-slate-600 dark:text-slate-300 font-medium">{{ t.pos_checkout|default:"POS Checkout" }}</span>
             </div>
             <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-                <i class="fa-solid fa-cart-shopping text-emerald-600"></i>
+                <i class="fa-solid fa-cash-register text-emerald-600"></i>
                 <span>Point of Sale (POS) Checkout</span>
             </h1>
         </div>
-        <a href="{% url 'sales_order_list' %}" class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-            Cancel
-        </a>
+        <div class="flex items-center gap-2">
+            <button type="button" onclick="openNewCustomerModal()" class="px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-200 dark:border-indigo-800 transition-all flex items-center gap-1.5">
+                <i class="fa-solid fa-user-plus text-xs"></i>
+                <span>+ New Customer</span>
+            </button>
+            <a href="{% url 'sales_order_list' %}" class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                Cancel
+            </a>
+        </div>
     </div>
 
     <!-- POS Two-Column Grid -->
@@ -29,64 +35,76 @@
         <!-- Left: Product Selection Catalog (7 cols) -->
         <div class="lg:col-span-7 space-y-4">
             <!-- Product Search & Filter Bar -->
-            <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-                <div class="relative">
+            <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center gap-3">
+                <div class="relative flex-1 w-full">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                         <i class="fa-solid fa-magnifying-glass text-xs"></i>
                     </span>
-                    <input type="text" id="productSearchInput" oninput="filterCatalog()" placeholder="Type to search items by name or SKU..."
-                        class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <input type="text" id="productSearchInput" oninput="filterCatalog()" placeholder="Search product name or SKU barcode..."
+                        class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-white">
+                </div>
+                <div class="text-xs text-slate-400 font-medium whitespace-nowrap">
+                    Click any item to add to cart
                 </div>
             </div>
 
             <!-- Products List -->
-            <div class="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm max-h-[620px] overflow-y-auto">
+            <div class="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm max-h-[660px] overflow-y-auto">
                 <div id="catalogGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {% for p in available_products %}
-                    <div class="catalog-item p-3.5 rounded-2xl border transition-all flex flex-col justify-between
-                        {% if p.quantity <= 0 %}opacity-50 bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800
-                        {% elif p.quantity <= p.reorder_level %}bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 hover:border-emerald-500
+                    <div class="catalog-item p-3.5 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer select-none
+                        {% if p.quantity <= 0 %}opacity-50 bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 cursor-not-allowed
+                        {% elif p.quantity <= p.reorder_level %}bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 hover:border-emerald-500 hover:shadow-md
                         {% else %}bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 hover:border-emerald-500 hover:shadow-md{% endif %}"
-                        data-name="{{ p.name|lower }}" data-sku="{{ p.sku|lower }}" data-id="{{ p.pk }}">
+                        data-name="{{ p.name|lower }}" data-sku="{{ p.sku|lower }}" data-id="{{ p.pk }}"
+                        onclick="{% if p.quantity > 0 %}addToCart({{ p.pk }}){% endif %}">
                         <div>
                             <div class="flex items-start justify-between gap-1.5">
                                 <h4 class="font-bold text-sm text-slate-900 dark:text-white line-clamp-2">{{ p.name }}</h4>
                                 <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0">${{ p.selling_price }}</span>
                             </div>
                             <div class="flex items-center gap-2 mt-1 flex-wrap">
-                                <span class="text-[10px] font-mono text-indigo-500">{{ p.sku }}</span>
+                                <span class="text-[10px] font-mono text-indigo-500 font-semibold">{{ p.sku }}</span>
                                 {% if p.category %}
                                 <span class="text-[10px] text-slate-400">&bull; {{ p.category.name }}</span>
+                                {% endif %}
+                                {% if p.is_perishable %}
+                                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">Fast-Expire</span>
                                 {% endif %}
                             </div>
                         </div>
 
                         <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                            <span class="text-[11px] {% if p.quantity <= 0 %}text-rose-500 font-bold{% elif p.quantity <= p.reorder_level %}text-amber-600 font-semibold{% else %}text-slate-500{% endif %}">
+                            <span class="text-[11px] {% if p.quantity <= 0 %}text-rose-500 font-bold{% elif p.quantity <= p.reorder_level %}text-amber-600 font-semibold{% else %}text-slate-500 dark:text-slate-400{% endif %}">
                                 Stock: <strong>{{ p.quantity }}</strong> {{ p.unit }}
                             </span>
 
                             {% if p.quantity > 0 %}
-                            <button type="button" onclick="addToCart({{ p.pk }})"
-                                class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all flex items-center gap-1">
-                                <i class="fa-solid fa-plus text-[10px]"></i>
-                                <span>Add</span>
-                            </button>
+                            <div class="flex items-center gap-1.5">
+                                <span id="card-qty-badge-{{ p.pk }}" class="hidden px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold">
+                                    0 in cart
+                                </span>
+                                <button type="button" onclick="event.stopPropagation(); addToCart({{ p.pk }});"
+                                    class="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all flex items-center gap-1">
+                                    <i class="fa-solid fa-plus text-[10px]"></i>
+                                    <span>Add</span>
+                                </button>
+                            </div>
                             {% else %}
-                            <span class="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-bold">Out of stock</span>
+                            <span class="px-2 py-1 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[10px] font-bold">Out of stock</span>
                             {% endif %}
                         </div>
                     </div>
                     {% empty %}
                     <div class="col-span-full py-12 text-center text-xs text-slate-400">
-                        No active products available.
+                        No active products available in stock.
                     </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
 
-        <!-- Right: Checkout Cart & Billing Panel (5 cols) -->
+        <!-- Right: Checkout Cart & Customer Details (5 cols) -->
         <div class="lg:col-span-5">
             <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm sticky top-20">
                 <form method="POST" id="checkoutForm" onsubmit="return handleCheckoutSubmit(event)">
@@ -96,61 +114,116 @@
                     <!-- Customer Selection Header -->
                     <div class="pb-4 border-b border-slate-100 dark:border-slate-800 space-y-3">
                         <div class="flex items-center justify-between">
-                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-tag text-emerald-600"></i>
                                 Customer Details
                             </label>
-                            <button type="button" onclick="setWalkInCustomer()" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
-                                Walk-in Customer
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="openNewCustomerModal()" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                    + Add New
+                                </button>
+                                <span class="text-slate-300 dark:text-slate-700">&bull;</span>
+                                <button type="button" onclick="setWalkInCustomer()" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+                                    Walk-in
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Customer Select -->
-                        <select name="customer" id="customerSelect" onchange="handleCustomerSelect(this)"
-                            class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            <option value="">Select Registered Customer...</option>
-                            {% for c in customers %}
-                            <option value="{{ c.pk }}" data-phone="{{ c.phone }}" data-name="{{ c.name }}">{{ c.name }} ({{ c.phone|default:"No phone" }})</option>
-                            {% endfor %}
-                        </select>
+                        <!-- Customer Select Dropdown -->
+                        <div class="space-y-1">
+                            <select name="customer" id="customerSelect" onchange="handleCustomerSelect(this)"
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+                                <option value="">-- Walk-in Customer (Unregistered) --</option>
+                                {% for c in customers %}
+                                <option value="{{ c.pk }}" data-phone="{{ c.phone|default:'' }}" data-name="{{ c.name }}" data-address="{{ c.address|default:'' }}"
+                                    {% if selected_customer_id and c.pk|stringformat:"s" == selected_customer_id|stringformat:"s" %}selected{% endif %}>
+                                    {{ c.name }} {% if c.phone %}({{ c.phone }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-                        <!-- Walk-in customer text inputs (if not selected) -->
-                        <div id="walkInInputs" class="grid grid-cols-2 gap-2 pt-1">
-                            <input type="text" name="customer_name" id="walkInName" placeholder="Customer Name"
-                                class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
-                            <input type="text" name="customer_phone" id="walkInPhone" placeholder="Phone Number"
-                                class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                        <!-- Selected Customer Info Badge / Walk-in Details -->
+                        <div id="selectedCustomerCard" class="hidden p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 text-xs text-indigo-900 dark:text-indigo-200">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                                    <span id="custBadgeName">Customer Name</span>
+                                </span>
+                                <button type="button" onclick="setWalkInCustomer()" class="text-[10px] text-rose-500 hover:underline">
+                                    Clear
+                                </button>
+                            </div>
+                            <p id="custBadgeDetails" class="text-[11px] text-indigo-700 dark:text-indigo-300 mt-1">Phone: -</p>
+                        </div>
+
+                        <!-- Walk-in customer inputs (Active when no registered customer is selected) -->
+                        <div id="walkInInputs" class="space-y-2 pt-1">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Name</label>
+                                    <input type="text" name="customer_name" id="walkInName" value="Walk-in Customer" placeholder="Customer Name"
+                                        class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Phone (Optional)</label>
+                                    <input type="text" name="customer_phone" id="walkInPhone" placeholder="Phone Number"
+                                        class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 pt-1">
+                                <input type="checkbox" name="save_as_new_customer" id="saveCustomerCheckbox" class="rounded text-emerald-600 focus:ring-emerald-500">
+                                <label for="saveCustomerCheckbox" class="text-[11px] text-slate-600 dark:text-slate-400 cursor-pointer">
+                                    Save as new customer in Customer Directory
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Cart Items Table -->
+                    <!-- Cart / Order Items Details -->
                     <div class="py-4 border-b border-slate-100 dark:border-slate-800">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Order Items</span>
-                            <span id="cartCountBadge" class="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                                0 items
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-basket-shopping text-emerald-600"></i>
+                                Order Items
                             </span>
+                            <div class="flex items-center gap-2">
+                                <span id="cartCountBadge" class="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                                    0 items
+                                </span>
+                                <button type="button" id="clearCartBtn" onclick="clearCart()" class="hidden text-[10px] text-rose-500 hover:underline">
+                                    Clear Cart
+                                </button>
+                            </div>
                         </div>
 
-                        <div id="cartItemsList" class="divide-y divide-slate-100 dark:divide-slate-800 max-h-[220px] overflow-y-auto">
+                        <div id="cartItemsList" class="divide-y divide-slate-100 dark:divide-slate-800 max-h-[240px] overflow-y-auto">
                             <!-- Injected by JavaScript -->
                             <div id="emptyCartNotice" class="py-8 text-center text-xs text-slate-400">
                                 <i class="fa-solid fa-basket-shopping text-2xl mb-1 text-slate-300 dark:text-slate-600 block"></i>
-                                Cart is empty. Select products from the catalog.
+                                Cart is empty. Click any product from the catalog on the left to add items.
                             </div>
                         </div>
                     </div>
 
                     <!-- Financial Summary & Calculation -->
                     <div class="py-4 border-b border-slate-100 dark:border-slate-800 space-y-2 text-xs">
-                        <div class="flex items-center justify-between text-slate-500">
+                        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400">
                             <span>Subtotal</span>
-                            <span id="subtotalDisplay" class="font-bold text-slate-800 dark:text-slate-200">$0.00</span>
+                            <span id="subtotalDisplay" class="font-bold text-slate-800 dark:text-slate-200 text-sm">$0.00</span>
                         </div>
 
                         <!-- Discount -->
                         <div class="flex items-center justify-between gap-3">
-                            <span class="text-slate-500">Discount ($)</span>
+                            <span class="text-slate-500 dark:text-slate-400">Discount ($)</span>
                             <input type="number" step="0.01" min="0" name="discount_amount" id="discountInput" value="0.00" oninput="calculateTotals()"
+                                class="w-24 px-2.5 py-1 text-right rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        </div>
+
+                        <!-- Tax / VAT -->
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-slate-500 dark:text-slate-400">Tax ($)</span>
+                            <input type="number" step="0.01" min="0" name="tax_amount" id="taxInput" value="0.00" oninput="calculateTotals()"
                                 class="w-24 px-2.5 py-1 text-right rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         </div>
 
@@ -165,36 +238,41 @@
                     <div class="py-4 space-y-3">
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Payment Method</label>
-                            <div class="grid grid-cols-3 gap-2 text-xs">
+                            <div class="grid grid-cols-4 gap-2 text-xs">
                                 <label class="payment-option p-2 rounded-xl border border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 flex flex-col items-center gap-1 cursor-pointer font-bold">
                                     <input type="radio" name="payment_method" value="CASH" checked class="hidden" onchange="updatePaymentStyle(this)">
                                     <i class="fa-solid fa-money-bill-wave text-sm"></i>
-                                    <span>Cash</span>
+                                    <span class="text-[11px]">Cash</span>
+                                </label>
+                                <label class="payment-option p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex flex-col items-center gap-1 cursor-pointer font-semibold">
+                                    <input type="radio" name="payment_method" value="QR_CODE" class="hidden" onchange="updatePaymentStyle(this)">
+                                    <i class="fa-solid fa-qrcode text-sm"></i>
+                                    <span class="text-[11px]">KHQR</span>
                                 </label>
                                 <label class="payment-option p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex flex-col items-center gap-1 cursor-pointer font-semibold">
                                     <input type="radio" name="payment_method" value="BANK" class="hidden" onchange="updatePaymentStyle(this)">
                                     <i class="fa-solid fa-building-columns text-sm"></i>
-                                    <span>KHQR / Bank</span>
+                                    <span class="text-[11px]">Bank</span>
                                 </label>
                                 <label class="payment-option p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex flex-col items-center gap-1 cursor-pointer font-semibold">
                                     <input type="radio" name="payment_method" value="CARD" class="hidden" onchange="updatePaymentStyle(this)">
                                     <i class="fa-solid fa-credit-card text-sm"></i>
-                                    <span>Card</span>
+                                    <span class="text-[11px]">Card</span>
                                 </label>
                             </div>
                         </div>
 
                         <div>
                             <input type="text" name="notes" placeholder="Order notes or reference (optional)..."
-                                class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                                class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100">
                         </div>
                     </div>
 
                     <!-- Submit Button -->
                     <button type="submit" id="submitBtn" disabled
-                        class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-check"></i>
-                        <span>{{ t.checkout_complete }}</span>
+                        class="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-circle-check text-base"></i>
+                        <span>{{ t.checkout_complete|default:"Complete Sale & Print Receipt" }}</span>
                     </button>
                 </form>
             </div>
@@ -204,21 +282,92 @@
 
 </div>
 
+<!-- Quick Add Customer Modal -->
+<div id="quickCustomerModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-emerald-600"></i>
+                <span>Quick Register New Customer</span>
+            </h3>
+            <button type="button" onclick="closeNewCustomerModal()" class="text-slate-400 hover:text-slate-600 text-sm">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="quickCustomerForm" onsubmit="handleQuickCustomerSubmit(event)" class="space-y-3 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name <span class="text-rose-500">*</span></label>
+                <input type="text" id="modalCustName" required placeholder="e.g. Sokha Phan"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
+                <input type="text" id="modalCustPhone" placeholder="e.g. 012 345 678"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Email (Optional)</label>
+                <input type="email" id="modalCustEmail" placeholder="e.g. customer@example.com"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Address (Optional)</label>
+                <input type="text" id="modalCustAddress" placeholder="e.g. Phnom Penh"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+            </div>
+
+            <div id="modalCustError" class="hidden text-rose-500 font-semibold text-[11px]"></div>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onclick="closeNewCustomerModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold">
+                    Cancel
+                </button>
+                <button type="submit" id="modalCustSubmitBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5">
+                    <i class="fa-solid fa-check text-xs"></i>
+                    <span>Save & Select Customer</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {{ products_json|json_script:"products-data" }}
 
 <script>
-    const productsList = JSON.parse(document.getElementById('products-data').textContent);
-    const productsMap = {};
-    productsList.forEach(p => productsMap[p.id] = p);
+    // Fail-safe robust parsing of products data
+    let productsList = [];
+    try {
+        const rawElem = document.getElementById('products-data');
+        if (rawElem && rawElem.textContent) {
+            let parsed = JSON.parse(rawElem.textContent);
+            if (typeof parsed === 'string') {
+                parsed = JSON.parse(parsed);
+            }
+            if (Array.isArray(parsed)) {
+                productsList = parsed;
+            }
+        }
+    } catch (e) {
+        console.error("Error parsing products catalog data:", e);
+    }
 
-    let cart = []; // Array of { product_id, quantity, unit_price }
+    const productsMap = {};
+    productsList.forEach(p => {
+        productsMap[p.id] = p;
+    });
+
+    let cart = []; // Array of { product_id, name, sku, unit_price, unit, max_stock, quantity }
 
     function filterCatalog() {
         const query = document.getElementById('productSearchInput').value.toLowerCase().trim();
         const items = document.querySelectorAll('.catalog-item');
         items.forEach(el => {
-            const name = el.getAttribute('data-name');
-            const sku = el.getAttribute('data-sku');
+            const name = el.getAttribute('data-name') || '';
+            const sku = el.getAttribute('data-sku') || '';
             if (name.includes(query) || sku.includes(query)) {
                 el.style.display = 'flex';
             } else {
@@ -229,7 +378,15 @@
 
     function addToCart(productId) {
         const prod = productsMap[productId];
-        if (!prod || prod.quantity <= 0) return;
+        if (!prod) {
+            alert("Product information could not be found.");
+            return;
+        }
+
+        if (prod.quantity <= 0) {
+            alert(`"${prod.name}" is currently out of stock.`);
+            return;
+        }
 
         const existing = cart.find(item => item.product_id === productId);
         if (existing) {
@@ -243,8 +400,8 @@
                 product_id: productId,
                 name: prod.name,
                 sku: prod.sku,
-                unit_price: prod.selling_price,
-                unit: prod.unit,
+                unit_price: parseFloat(prod.selling_price) || 0,
+                unit: prod.unit || 'units',
                 max_stock: prod.quantity,
                 quantity: 1
             });
@@ -258,11 +415,30 @@
 
         const newQty = item.quantity + delta;
         if (newQty <= 0) {
-            cart = cart.filter(i => i.product_id !== productId);
+            removeFromCart(productId);
+            return;
         } else if (newQty > item.max_stock) {
-            alert(`Stock limit reached (${item.max_stock} available)`);
+            alert(`Stock limit reached! Only ${item.max_stock} available in stock.`);
         } else {
             item.quantity = newQty;
+        }
+        renderCart();
+    }
+
+    function setCartItemQuantity(productId, val) {
+        const item = cart.find(i => i.product_id === productId);
+        if (!item) return;
+
+        let parsedQty = parseInt(val, 10);
+        if (isNaN(parsedQty) || parsedQty <= 0) {
+            removeFromCart(productId);
+            return;
+        }
+        if (parsedQty > item.max_stock) {
+            alert(`Stock limit reached! Max available: ${item.max_stock}`);
+            item.quantity = item.max_stock;
+        } else {
+            item.quantity = parsedQty;
         }
         renderCart();
     }
@@ -272,29 +448,52 @@
         renderCart();
     }
 
+    function clearCart() {
+        if (cart.length > 0 && confirm("Are you sure you want to clear all items in the cart?")) {
+            cart = [];
+            renderCart();
+        }
+    }
+
     function renderCart() {
         const container = document.getElementById('cartItemsList');
-        const emptyNotice = document.getElementById('emptyCartNotice');
         const submitBtn = document.getElementById('submitBtn');
         const cartCountBadge = document.getElementById('cartCountBadge');
+        const clearCartBtn = document.getElementById('clearCartBtn');
+
+        // Update badges on catalog cards
+        document.querySelectorAll('[id^="card-qty-badge-"]').forEach(badge => {
+            badge.classList.add('hidden');
+            badge.textContent = '0 in cart';
+        });
+
+        cart.forEach(item => {
+            const badge = document.getElementById(`card-qty-badge-${item.product_id}`);
+            if (badge) {
+                badge.textContent = `${item.quantity} in cart`;
+                badge.classList.remove('hidden');
+            }
+        });
 
         if (cart.length === 0) {
             container.innerHTML = `
                 <div id="emptyCartNotice" class="py-8 text-center text-xs text-slate-400">
                     <i class="fa-solid fa-basket-shopping text-2xl mb-1 text-slate-300 dark:text-slate-600 block"></i>
-                    Cart is empty. Select products from the catalog.
+                    Cart is empty. Click any product from the catalog on the left to add items.
                 </div>
             `;
             submitBtn.disabled = true;
             cartCountBadge.textContent = '0 items';
+            clearCartBtn.classList.add('hidden');
             calculateTotals();
             return;
         }
 
         submitBtn.disabled = false;
+        clearCartBtn.classList.remove('hidden');
         let totalCount = 0;
-
         let html = '';
+
         cart.forEach(item => {
             totalCount += item.quantity;
             const lineTotal = (item.unit_price * item.quantity).toFixed(2);
@@ -302,22 +501,24 @@
                 <div class="py-2.5 flex items-center justify-between gap-2 text-xs">
                     <div class="min-w-0 flex-1">
                         <h5 class="font-bold text-slate-900 dark:text-white truncate">${item.name}</h5>
-                        <span class="text-[10px] text-slate-400 font-mono">${item.sku} &bull; $${item.unit_price}</span>
+                        <span class="text-[10px] text-slate-400 font-mono">${item.sku} &bull; $${item.unit_price.toFixed(2)}</span>
                     </div>
 
-                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                    <div class="flex items-center gap-1 flex-shrink-0">
                         <button type="button" onclick="updateCartQuantity(${item.product_id}, -1)"
-                            class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 font-bold flex items-center justify-center">
+                            class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center">
                             -
                         </button>
-                        <span class="w-8 text-center font-bold text-slate-900 dark:text-white">${item.quantity}</span>
+                        <input type="number" min="1" max="${item.max_stock}" value="${item.quantity}"
+                            onchange="setCartItemQuantity(${item.product_id}, this.value)"
+                            class="w-10 text-center font-bold text-slate-900 dark:text-white rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs py-0.5">
                         <button type="button" onclick="updateCartQuantity(${item.product_id}, 1)"
-                            class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 font-bold flex items-center justify-center">
+                            class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center">
                             +
                         </button>
                     </div>
 
-                    <div class="text-right w-16">
+                    <div class="text-right w-16 flex-shrink-0">
                         <span class="font-bold text-slate-900 dark:text-white block">$${lineTotal}</span>
                         <button type="button" onclick="removeFromCart(${item.product_id})" class="text-[10px] text-rose-500 hover:underline">
                             Remove
@@ -339,7 +540,8 @@
         });
 
         const discountInput = parseFloat(document.getElementById('discountInput').value) || 0;
-        const grandTotal = Math.max(0, subtotal - discountInput);
+        const taxInput = parseFloat(document.getElementById('taxInput').value) || 0;
+        const grandTotal = Math.max(0, subtotal - discountInput + taxInput);
 
         document.getElementById('subtotalDisplay').textContent = `$${subtotal.toFixed(2)}`;
         document.getElementById('grandTotalDisplay').textContent = `$${grandTotal.toFixed(2)}`;
@@ -351,13 +553,25 @@
         document.getElementById('walkInName').value = 'Walk-in Customer';
         document.getElementById('walkInPhone').value = '';
         document.getElementById('walkInInputs').classList.remove('hidden');
+        document.getElementById('selectedCustomerCard').classList.add('hidden');
     }
 
     function handleCustomerSelect(select) {
         const selected = select.options[select.selectedIndex];
         if (select.value) {
-            document.getElementById('walkInName').value = selected.getAttribute('data-name') || '';
-            document.getElementById('walkInPhone').value = selected.getAttribute('data-phone') || '';
+            const name = selected.getAttribute('data-name') || selected.text;
+            const phone = selected.getAttribute('data-phone') || '';
+            const address = selected.getAttribute('data-address') || '';
+
+            document.getElementById('custBadgeName').textContent = name;
+            let details = phone ? `Phone: ${phone}` : 'No phone recorded';
+            if (address) details += ` &bull; ${address}`;
+            document.getElementById('custBadgeDetails').innerHTML = details;
+
+            document.getElementById('selectedCustomerCard').classList.remove('hidden');
+            document.getElementById('walkInInputs').classList.add('hidden');
+            document.getElementById('walkInName').value = name;
+            document.getElementById('walkInPhone').value = phone;
         } else {
             setWalkInCustomer();
         }
@@ -373,11 +587,98 @@
     function handleCheckoutSubmit(e) {
         if (cart.length === 0) {
             e.preventDefault();
-            alert('Please add products to your cart before checking out.');
+            alert('Please add at least one product to the checkout cart.');
             return false;
         }
         document.getElementById('cartDataInput').value = JSON.stringify(cart);
         return true;
     }
+
+    // Quick Customer Modal
+    function openNewCustomerModal() {
+        document.getElementById('quickCustomerModal').classList.remove('hidden');
+        document.getElementById('modalCustError').classList.add('hidden');
+        document.getElementById('modalCustName').focus();
+    }
+
+    function closeNewCustomerModal() {
+        document.getElementById('quickCustomerModal').classList.add('hidden');
+        document.getElementById('quickCustomerForm').reset();
+    }
+
+    function handleQuickCustomerSubmit(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('modalCustSubmitBtn');
+        const errElem = document.getElementById('modalCustError');
+        const name = document.getElementById('modalCustName').value.trim();
+        const phone = document.getElementById('modalCustPhone').value.trim();
+        const email = document.getElementById('modalCustEmail').value.trim();
+        const address = document.getElementById('modalCustAddress').value.trim();
+
+        if (!name) {
+            errElem.textContent = 'Customer name is required.';
+            errElem.classList.remove('hidden');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Saving...';
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('phone', phone);
+        formData.append('email', email);
+        formData.append('address', address);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+        fetch("{% url 'customer_quick_create' %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-check text-xs"></i> Save & Select Customer';
+
+            if (data.success && data.customer) {
+                // Add to customerSelect dropdown and select
+                const select = document.getElementById('customerSelect');
+                const opt = document.createElement('option');
+                opt.value = data.customer.id;
+                opt.text = `${data.customer.name} (${data.customer.phone || 'No phone'})`;
+                opt.setAttribute('data-name', data.customer.name);
+                opt.setAttribute('data-phone', data.customer.phone);
+                opt.setAttribute('data-address', data.customer.address);
+                select.appendChild(opt);
+                select.value = data.customer.id;
+
+                handleCustomerSelect(select);
+                closeNewCustomerModal();
+            } else {
+                errElem.textContent = data.error || 'Failed to save customer.';
+                errElem.classList.remove('hidden');
+            }
+        })
+        .catch(err => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-check text-xs"></i> Save & Select Customer';
+            errElem.textContent = 'Network or server error occurred.';
+            errElem.classList.remove('hidden');
+        });
+    }
+
+    // Auto-initialize customer state on load
+    document.addEventListener('DOMContentLoaded', () => {
+        const custSelect = document.getElementById('customerSelect');
+        if (custSelect && custSelect.value) {
+            handleCustomerSelect(custSelect);
+        } else {
+            setWalkInCustomer();
+        }
+        renderCart();
+    });
 </script>
 {% endblock %}

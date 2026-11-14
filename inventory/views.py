@@ -782,6 +782,7 @@ def sales_order_create(request):
             customer_id = request.POST.get('customer')
             walk_in_name = request.POST.get('customer_name', '').strip()
             walk_in_phone = request.POST.get('customer_phone', '').strip()
+            save_as_new_customer = request.POST.get('save_as_new_customer') in ['on', 'true', '1']
             payment_method = request.POST.get('payment_method', 'CASH')
             order_notes = request.POST.get('notes', '').strip()
             discount_amount = Decimal(request.POST.get('discount_amount', '0.00') or '0.00')
@@ -790,6 +791,15 @@ def sales_order_create(request):
             customer = None
             if customer_id:
                 customer = Customer.objects.filter(pk=customer_id).first()
+            elif save_as_new_customer and walk_in_name:
+                customer = Customer.objects.create(
+                    name=walk_in_name,
+                    phone=walk_in_phone,
+                    notes='Auto-created from POS checkout'
+                )
+
+            customer_display_name = customer.name if customer else (walk_in_name or 'Walk-in Customer')
+            customer_display_phone = customer.phone if customer else walk_in_phone
 
             # Atomic transaction to guarantee stock consistency
             with transaction.atomic():
@@ -835,8 +845,8 @@ def sales_order_create(request):
                 order = SaleOrder.objects.create(
                     invoice_no=invoice_no,
                     customer=customer,
-                    customer_name=walk_in_name if not customer else customer.name,
-                    customer_phone=walk_in_phone if not customer else customer.phone,
+                    customer_name=customer_display_name,
+                    customer_phone=customer_display_phone,
                     subtotal=subtotal,
                     discount_amount=discount_amount,
                     tax_amount=tax_amount,
@@ -907,8 +917,41 @@ def sales_order_create(request):
     return render(request, 'inventory/sales_order_form.html', {
         'available_products': available_products,
         'customers': customers,
-        'products_json': json.dumps(products_json),
+        'products_json': products_json,
+        'selected_customer_id': request.GET.get('customer', ''),
     })
+
+
+@login_required
+def customer_quick_create(request):
+    """AJAX endpoint for quickly creating a customer from POS without leaving checkout"""
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        email = request.POST.get('email', '').strip()
+        address = request.POST.get('address', '').strip()
+
+        if not name:
+            return JsonResponse({'success': False, 'error': 'Customer name is required.'}, status=400)
+
+        customer = Customer.objects.create(
+            name=name,
+            phone=phone,
+            email=email,
+            address=address,
+            notes='Created during POS checkout'
+        )
+        return JsonResponse({
+            'success': True,
+            'customer': {
+                'id': customer.pk,
+                'name': customer.name,
+                'phone': customer.phone or '',
+                'email': customer.email or '',
+                'address': customer.address or ''
+            }
+        })
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
 
 @login_required

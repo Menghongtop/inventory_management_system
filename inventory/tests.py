@@ -261,4 +261,25 @@ class InventoryUpgradeTests(TestCase):
         self.assertContains(res_invoice, '58.00')
         self.assertContains(res_invoice, 'Print Receipt')
 
+    def test_pos_checkout_page_renders_with_catalog_and_quick_customer(self):
+        """Verify POS checkout page renders product catalog JSON and quick customer registration."""
+        res = self.client.get(reverse('sales_order_create'))
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'products-data')
+        self.assertContains(res, 'Point of Sale (POS) Checkout')
+
+        # Test AJAX customer quick create
+        quick_data = {
+            'name': 'Quick POS Buyer',
+            'phone': '011223344',
+            'email': 'quick@buyer.com',
+            'address': 'Street 2004'
+        }
+        res_quick = self.client.post(reverse('customer_quick_create'), data=quick_data)
+        self.assertEqual(res_quick.status_code, 200)
+        resp_json = res_quick.json()
+        self.assertTrue(resp_json['success'])
+        self.assertEqual(resp_json['customer']['name'], 'Quick POS Buyer')
+        self.assertTrue(Customer.objects.filter(name='Quick POS Buyer').exists())
+
 
