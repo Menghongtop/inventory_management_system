@@ -8,7 +8,7 @@ from inventory.models import UserProfile
 
 
 class Command(BaseCommand):
-    help = "Create the initial staff account."
+    help = "Create the initial staff account if it does not exist."
 
     def handle(self, *args, **options):
         username = os.getenv("DJANGO_USER_USERNAME")
@@ -22,28 +22,37 @@ class Command(BaseCommand):
 
         User = get_user_model()
 
-        if User.objects.filter(username=username).exists():
-            raise CommandError(
-                f"Username '{username}' already exists."
+        user = User.objects.filter(username=username).first()
+
+        if user:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"User '{username}' already exists. "
+                    "Keeping the existing account and password."
+                )
+            )
+        else:
+            validate_password(password)
+
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
             )
 
-        validate_password(password)
-
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password
-        )
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Staff account '{username}' created successfully."
+                )
+            )
 
         profile, created = UserProfile.objects.get_or_create(
             user=user
         )
 
-        profile.role = "staff"
-        profile.save()
+        if profile.role != "staff":
+            profile.role = "staff"
+            profile.save(update_fields=["role"])
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Staff account '{username}' created successfully."
-            )
-        )
+        if created:
+            self.stdout.write("Staff profile created successfully.")
