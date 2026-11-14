@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales Orders & Invoices | StockPro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">{{ t.sales_orders }}</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Multi-item sales transactions, billing records, and printable receipt generation.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'sales_order_create' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md shadow-emerald-600/30 transition-all">
+                <i class="fa-solid fa-cart-shopping text-xs"></i>
+                <span>{{ t.pos_checkout }}</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <form method="GET" class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+            <div class="flex-1 relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                </span>
+                <input type="text" name="q" value="{{ query }}" placeholder="Search by Invoice #, customer name, or phone..."
+                    class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Payment Method Filter -->
+            <select name="payment_method" onchange="this.form.submit()"
+                class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">All Payment Methods</option>
+                <option value="CASH" {% if selected_payment == 'CASH' %}selected{% endif %}>Cash</option>
+                <option value="BANK" {% if selected_payment == 'BANK' %}selected{% endif %}>Bank Transfer (KHQR)</option>
+                <option value="CARD" {% if selected_payment == 'CARD' %}selected{% endif %}>Credit / Debit Card</option>
+                <option value="OTHER" {% if selected_payment == 'OTHER' %}selected{% endif %}>Other</option>
+            </select>
+
+            <!-- Status Filter -->
+            <select name="status" onchange="this.form.submit()"
+                class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">All Statuses</option>
+                <option value="COMPLETED" {% if selected_status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                <option value="PENDING" {% if selected_status == 'PENDING' %}selected{% endif %}>Pending</option>
+            </select>
+
+            <button type="submit" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold">
+                {{ t.filter }}
+            </button>
+            {% if query or selected_payment or selected_status %}
+            <a href="{% url 'sales_order_list' %}" class="px-3 py-2 rounded-xl text-slate-500 hover:text-slate-700 text-xs font-semibold">
+                {{ t.clear }}
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Orders Table Card -->
+    <div class="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-6">Invoice #</th>
+                        <th class="py-3.5 px-4">Date & Time</th>
+                        <th class="py-3.5 px-4">Customer</th>
+                        <th class="py-3.5 px-4 text-center">Items</th>
+                        <th class="py-3.5 px-4">Payment</th>
+                        <th class="py-3.5 px-4">Status</th>
+                        <th class="py-3.5 px-4 text-right">Grand Total</th>
+                        <th class="py-3.5 px-6 text-right">Receipt</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                    {% for order in page_obj %}
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                        <td class="py-4 px-6 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                            <a href="{% url 'sales_order_detail' pk=order.pk %}" class="hover:underline">{{ order.invoice_no }}</a>
+                        </td>
+                        <td class="py-4 px-4 text-slate-500 whitespace-nowrap">{{ order.created_at|date:"M d, Y H:i" }}</td>
+                        <td class="py-4 px-4">
+                            {% if order.customer %}
+                            <a href="{% url 'customer_detail' pk=order.customer.pk %}" class="font-bold text-slate-900 dark:text-white hover:text-indigo-600">
+                                {{ order.customer.name }}
+                            </a>
+                            {% else %}
+                            <span class="font-semibold text-slate-700 dark:text-slate-300">{{ order.display_customer_name }}</span>
+                            {% endif %}
+                            {% if order.customer_phone %}
+                            <span class="block text-[10px] text-slate-400">{{ order.customer_phone }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-4 px-4 text-center">
+                            <span class="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 font-bold">
+                                {{ order.total_items_count }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4">
+                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                {% if order.payment_method == 'CASH' %}<i class="fa-solid fa-money-bill-wave text-emerald-500"></i>
+                                {% elif order.payment_method == 'BANK' %}<i class="fa-solid fa-building-columns text-blue-500"></i>
+                                {% elif order.payment_method == 'CARD' %}<i class="fa-solid fa-credit-card text-purple-500"></i>
+                                {% else %}<i class="fa-solid fa-wallet text-slate-400"></i>{% endif %}
+                                {{ order.get_payment_method_display }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase
+                                {% if order.status == 'COMPLETED' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300
+                                {% elif order.status == 'PENDING' %}bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300
+                                {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 text-right">
+                            <span class="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                                ${{ order.grand_total|floatformat:2 }}
+                            </span>
+                            {% if order.discount_amount > 0 %}
+                            <span class="block text-[10px] text-rose-500">-${{ order.discount_amount }} disc</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-4 px-6 text-right">
+                            <a href="{% url 'sales_order_detail' pk=order.pk %}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 text-slate-700 dark:text-slate-300 font-semibold transition-all">
+                                <i class="fa-solid fa-receipt text-xs"></i>
+                                <span>Receipt</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="py-16 text-center">
+                            <div class="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3 text-2xl">
+                                <i class="fa-solid fa-receipt"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-700 dark:text-slate-300">No Sales Orders Found</h3>
+                            <p class="text-xs text-slate-400 mt-1">Process your first checkout using the POS system.</p>
+                            <a href="{% url 'sales_order_create' %}" class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
+                                <i class="fa-solid fa-cart-shopping text-xs"></i>
+                                <span>Open POS Checkout</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+            <div>Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</div>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}&q={{ query }}&payment_method={{ selected_payment }}&status={{ selected_status }}" class="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700">Prev</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&q={{ query }}&payment_method={{ selected_payment }}&status={{ selected_status }}" class="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

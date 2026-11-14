@@ -47,7 +47,7 @@ def seed_data():
     from django.core.management import call_command
     from django.contrib.auth.models import User
     from django.utils import timezone
-    from inventory.models import Category, Supplier, Product, StockTransaction, UserProfile
+    from inventory.models import Category, Supplier, Product, StockTransaction, UserProfile, Customer, SaleOrder, SaleOrderItem
 
     print("[*] Running migrations...")
     call_command('makemigrations', 'inventory', interactive=False)
@@ -346,6 +346,64 @@ def seed_data():
             )
             # Update created_at timestamp
             StockTransaction.objects.filter(pk=tx.pk).update(created_at=t_time)
+
+        print("[*] Creating demo customers and initial sale order...")
+        cust1, _ = Customer.objects.get_or_create(
+            phone='012888999',
+            defaults={
+                'name': 'Angkor Mega Supermarket',
+                'email': 'procurement@angkormarket.com',
+                'address': '#45 Monivong Blvd, Phnom Penh',
+                'notes': 'Key retail partner - high-volume perishable buyer'
+            }
+        )
+        cust2, _ = Customer.objects.get_or_create(
+            phone='098765432',
+            defaults={
+                'name': 'Golden Bakery & Cafe',
+                'email': 'order@goldenbakery.kh',
+                'address': '#12 Sothearos Blvd, Phnom Penh',
+                'notes': 'Regular weekly dairy and bakery supply customer'
+            }
+        )
+
+        # Seed an initial completed sale order if none exist
+        if SaleOrder.objects.count() == 0:
+            so = SaleOrder.objects.create(
+                invoice_no='INV-20261114-1001',
+                customer=cust2,
+                customer_name=cust2.name,
+                customer_phone=cust2.phone,
+                subtotal=Decimal('62.50'),
+                discount_amount=Decimal('2.50'),
+                tax_amount=Decimal('0.00'),
+                grand_total=Decimal('60.00'),
+                payment_method='QR_CODE',
+                status='COMPLETED',
+                notes='Direct store pickup - Paid via KHQR',
+                created_by=staff_user
+            )
+            # Add line items
+            SaleOrderItem.objects.create(
+                order=so,
+                product=p1,
+                product_name=p1.name,
+                product_sku=p1.sku,
+                unit_cost_price=p1.cost_price,
+                unit_selling_price=p1.selling_price,
+                quantity=10,
+                line_total=Decimal('35.00')
+            )
+            SaleOrderItem.objects.create(
+                order=so,
+                product=p3,
+                product_name=p3.name,
+                product_sku=p3.sku,
+                unit_cost_price=p3.cost_price,
+                unit_selling_price=p3.selling_price,
+                quantity=5,
+                line_total=Decimal('27.50')
+            )
 
     print("[OK] Seed completed successfully!")
 

@@ -1,4 +1,3 @@
-import dj_database_url
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -88,12 +87,22 @@ if DB_ENGINE == 'mysql' and not os.getenv('DATABASE_URL'):
         print("[!] Falling back to SQLite for local development preview until MySQL credentials are set in .env.")
         use_mysql = False
 if os.getenv('DATABASE_URL'):
-    DATABASES = {
-        'default': dj_database_url.parse(
-            os.environ['DATABASE_URL'],
-            conn_max_age=600
-        )
-    }
+    try:
+        import dj_database_url
+        DATABASES = {
+            'default': dj_database_url.parse(
+                os.environ['DATABASE_URL'],
+                conn_max_age=600
+            )
+        }
+    except ImportError:
+        print("[!] Warning: DATABASE_URL is set but 'dj-database-url' package is not installed.")
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 
 elif use_mysql:
     DATABASES = {

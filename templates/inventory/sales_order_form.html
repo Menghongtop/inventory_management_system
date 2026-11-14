@@ -1,0 +1,383 @@
+{% extends 'base.html' %}
+
+{% block title %}POS Sales Checkout | StockPro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                <a href="{% url 'sales_order_list' %}" class="hover:underline">{{ t.sales_orders }}</a>
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                <span class="text-slate-600 dark:text-slate-300 font-medium">{{ t.pos_checkout }}</span>
+            </div>
+            <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+                <i class="fa-solid fa-cart-shopping text-emerald-600"></i>
+                <span>Point of Sale (POS) Checkout</span>
+            </h1>
+        </div>
+        <a href="{% url 'sales_order_list' %}" class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+            Cancel
+        </a>
+    </div>
+
+    <!-- POS Two-Column Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Left: Product Selection Catalog (7 cols) -->
+        <div class="lg:col-span-7 space-y-4">
+            <!-- Product Search & Filter Bar -->
+            <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </span>
+                    <input type="text" id="productSearchInput" oninput="filterCatalog()" placeholder="Type to search items by name or SKU..."
+                        class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+            </div>
+
+            <!-- Products List -->
+            <div class="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm max-h-[620px] overflow-y-auto">
+                <div id="catalogGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {% for p in available_products %}
+                    <div class="catalog-item p-3.5 rounded-2xl border transition-all flex flex-col justify-between
+                        {% if p.quantity <= 0 %}opacity-50 bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800
+                        {% elif p.quantity <= p.reorder_level %}bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 hover:border-emerald-500
+                        {% else %}bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 hover:border-emerald-500 hover:shadow-md{% endif %}"
+                        data-name="{{ p.name|lower }}" data-sku="{{ p.sku|lower }}" data-id="{{ p.pk }}">
+                        <div>
+                            <div class="flex items-start justify-between gap-1.5">
+                                <h4 class="font-bold text-sm text-slate-900 dark:text-white line-clamp-2">{{ p.name }}</h4>
+                                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0">${{ p.selling_price }}</span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-1 flex-wrap">
+                                <span class="text-[10px] font-mono text-indigo-500">{{ p.sku }}</span>
+                                {% if p.category %}
+                                <span class="text-[10px] text-slate-400">&bull; {{ p.category.name }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                            <span class="text-[11px] {% if p.quantity <= 0 %}text-rose-500 font-bold{% elif p.quantity <= p.reorder_level %}text-amber-600 font-semibold{% else %}text-slate-500{% endif %}">
+                                Stock: <strong>{{ p.quantity }}</strong> {{ p.unit }}
+                            </span>
+
+                            {% if p.quantity > 0 %}
+                            <button type="button" onclick="addToCart({{ p.pk }})"
+                                class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all flex items-center gap-1">
+                                <i class="fa-solid fa-plus text-[10px]"></i>
+                                <span>Add</span>
+                            </button>
+                            {% else %}
+                            <span class="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-bold">Out of stock</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-span-full py-12 text-center text-xs text-slate-400">
+                        No active products available.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Checkout Cart & Billing Panel (5 cols) -->
+        <div class="lg:col-span-5">
+            <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm sticky top-20">
+                <form method="POST" id="checkoutForm" onsubmit="return handleCheckoutSubmit(event)">
+                    {% csrf_token %}
+                    <input type="hidden" name="cart_data" id="cartDataInput" value="[]">
+
+                    <!-- Customer Selection Header -->
+                    <div class="pb-4 border-b border-slate-100 dark:border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                Customer Details
+                            </label>
+                            <button type="button" onclick="setWalkInCustomer()" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+                                Walk-in Customer
+                            </button>
+                        </div>
+
+                        <!-- Customer Select -->
+                        <select name="customer" id="customerSelect" onchange="handleCustomerSelect(this)"
+                            class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="">Select Registered Customer...</option>
+                            {% for c in customers %}
+                            <option value="{{ c.pk }}" data-phone="{{ c.phone }}" data-name="{{ c.name }}">{{ c.name }} ({{ c.phone|default:"No phone" }})</option>
+                            {% endfor %}
+                        </select>
+
+                        <!-- Walk-in customer text inputs (if not selected) -->
+                        <div id="walkInInputs" class="grid grid-cols-2 gap-2 pt-1">
+                            <input type="text" name="customer_name" id="walkInName" placeholder="Customer Name"
+                                class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                            <input type="text" name="customer_phone" id="walkInPhone" placeholder="Phone Number"
+                                class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                        </div>
+                    </div>
+
+                    <!-- Cart Items Table -->
+                    <div class="py-4 border-b border-slate-100 dark:border-slate-800">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Order Items</span>
+                            <span id="cartCountBadge" class="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                                0 items
+                            </span>
+                        </div>
+
+                        <div id="cartItemsList" class="divide-y divide-slate-100 dark:divide-slate-800 max-h-[220px] overflow-y-auto">
+                            <!-- Injected by JavaScript -->
+                            <div id="emptyCartNotice" class="py-8 text-center text-xs text-slate-400">
+                                <i class="fa-solid fa-basket-shopping text-2xl mb-1 text-slate-300 dark:text-slate-600 block"></i>
+                                Cart is empty. Select products from the catalog.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Summary & Calculation -->
+                    <div class="py-4 border-b border-slate-100 dark:border-slate-800 space-y-2 text-xs">
+                        <div class="flex items-center justify-between text-slate-500">
+                            <span>Subtotal</span>
+                            <span id="subtotalDisplay" class="font-bold text-slate-800 dark:text-slate-200">$0.00</span>
+                        </div>
+
+                        <!-- Discount -->
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-slate-500">Discount ($)</span>
+                            <input type="number" step="0.01" min="0" name="discount_amount" id="discountInput" value="0.00" oninput="calculateTotals()"
+                                class="w-24 px-2.5 py-1 text-right rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        </div>
+
+                        <!-- Grand Total -->
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-baseline justify-between">
+                            <span class="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">Grand Total</span>
+                            <span id="grandTotalDisplay" class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">$0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method & Notes -->
+                    <div class="py-4 space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Payment Method</label>
+                            <div class="grid grid-cols-3 gap-2 text-xs">
+                                <label class="payment-option p-2 rounded-xl border border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 flex flex-col items-center gap-1 cursor-pointer font-bold">
+                                    <input type="radio" name="payment_method" value="CASH" checked class="hidden" onchange="updatePaymentStyle(this)">
+                                    <i class="fa-solid fa-money-bill-wave text-sm"></i>
+                                    <span>Cash</span>
+                                </label>
+                                <label class="payment-option p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex flex-col items-center gap-1 cursor-pointer font-semibold">
+                                    <input type="radio" name="payment_method" value="BANK" class="hidden" onchange="updatePaymentStyle(this)">
+                                    <i class="fa-solid fa-building-columns text-sm"></i>
+                                    <span>KHQR / Bank</span>
+                                </label>
+                                <label class="payment-option p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex flex-col items-center gap-1 cursor-pointer font-semibold">
+                                    <input type="radio" name="payment_method" value="CARD" class="hidden" onchange="updatePaymentStyle(this)">
+                                    <i class="fa-solid fa-credit-card text-sm"></i>
+                                    <span>Card</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <input type="text" name="notes" placeholder="Order notes or reference (optional)..."
+                                class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="submitBtn" disabled
+                        class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-check"></i>
+                        <span>{{ t.checkout_complete }}</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+{{ products_json|json_script:"products-data" }}
+
+<script>
+    const productsList = JSON.parse(document.getElementById('products-data').textContent);
+    const productsMap = {};
+    productsList.forEach(p => productsMap[p.id] = p);
+
+    let cart = []; // Array of { product_id, quantity, unit_price }
+
+    function filterCatalog() {
+        const query = document.getElementById('productSearchInput').value.toLowerCase().trim();
+        const items = document.querySelectorAll('.catalog-item');
+        items.forEach(el => {
+            const name = el.getAttribute('data-name');
+            const sku = el.getAttribute('data-sku');
+            if (name.includes(query) || sku.includes(query)) {
+                el.style.display = 'flex';
+            } else {
+                el.style.display = 'none';
+            }
+        });
+    }
+
+    function addToCart(productId) {
+        const prod = productsMap[productId];
+        if (!prod || prod.quantity <= 0) return;
+
+        const existing = cart.find(item => item.product_id === productId);
+        if (existing) {
+            if (existing.quantity < prod.quantity) {
+                existing.quantity += 1;
+            } else {
+                alert(`Cannot add more. Only ${prod.quantity} ${prod.unit} available in stock.`);
+            }
+        } else {
+            cart.push({
+                product_id: productId,
+                name: prod.name,
+                sku: prod.sku,
+                unit_price: prod.selling_price,
+                unit: prod.unit,
+                max_stock: prod.quantity,
+                quantity: 1
+            });
+        }
+        renderCart();
+    }
+
+    function updateCartQuantity(productId, delta) {
+        const item = cart.find(i => i.product_id === productId);
+        if (!item) return;
+
+        const newQty = item.quantity + delta;
+        if (newQty <= 0) {
+            cart = cart.filter(i => i.product_id !== productId);
+        } else if (newQty > item.max_stock) {
+            alert(`Stock limit reached (${item.max_stock} available)`);
+        } else {
+            item.quantity = newQty;
+        }
+        renderCart();
+    }
+
+    function removeFromCart(productId) {
+        cart = cart.filter(i => i.product_id !== productId);
+        renderCart();
+    }
+
+    function renderCart() {
+        const container = document.getElementById('cartItemsList');
+        const emptyNotice = document.getElementById('emptyCartNotice');
+        const submitBtn = document.getElementById('submitBtn');
+        const cartCountBadge = document.getElementById('cartCountBadge');
+
+        if (cart.length === 0) {
+            container.innerHTML = `
+                <div id="emptyCartNotice" class="py-8 text-center text-xs text-slate-400">
+                    <i class="fa-solid fa-basket-shopping text-2xl mb-1 text-slate-300 dark:text-slate-600 block"></i>
+                    Cart is empty. Select products from the catalog.
+                </div>
+            `;
+            submitBtn.disabled = true;
+            cartCountBadge.textContent = '0 items';
+            calculateTotals();
+            return;
+        }
+
+        submitBtn.disabled = false;
+        let totalCount = 0;
+
+        let html = '';
+        cart.forEach(item => {
+            totalCount += item.quantity;
+            const lineTotal = (item.unit_price * item.quantity).toFixed(2);
+            html += `
+                <div class="py-2.5 flex items-center justify-between gap-2 text-xs">
+                    <div class="min-w-0 flex-1">
+                        <h5 class="font-bold text-slate-900 dark:text-white truncate">${item.name}</h5>
+                        <span class="text-[10px] text-slate-400 font-mono">${item.sku} &bull; $${item.unit_price}</span>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <button type="button" onclick="updateCartQuantity(${item.product_id}, -1)"
+                            class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 font-bold flex items-center justify-center">
+                            -
+                        </button>
+                        <span class="w-8 text-center font-bold text-slate-900 dark:text-white">${item.quantity}</span>
+                        <button type="button" onclick="updateCartQuantity(${item.product_id}, 1)"
+                            class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 font-bold flex items-center justify-center">
+                            +
+                        </button>
+                    </div>
+
+                    <div class="text-right w-16">
+                        <span class="font-bold text-slate-900 dark:text-white block">$${lineTotal}</span>
+                        <button type="button" onclick="removeFromCart(${item.product_id})" class="text-[10px] text-rose-500 hover:underline">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        cartCountBadge.textContent = `${totalCount} item${totalCount > 1 ? 's' : ''}`;
+        calculateTotals();
+    }
+
+    function calculateTotals() {
+        let subtotal = 0;
+        cart.forEach(item => {
+            subtotal += (item.unit_price * item.quantity);
+        });
+
+        const discountInput = parseFloat(document.getElementById('discountInput').value) || 0;
+        const grandTotal = Math.max(0, subtotal - discountInput);
+
+        document.getElementById('subtotalDisplay').textContent = `$${subtotal.toFixed(2)}`;
+        document.getElementById('grandTotalDisplay').textContent = `$${grandTotal.toFixed(2)}`;
+        document.getElementById('cartDataInput').value = JSON.stringify(cart);
+    }
+
+    function setWalkInCustomer() {
+        document.getElementById('customerSelect').value = '';
+        document.getElementById('walkInName').value = 'Walk-in Customer';
+        document.getElementById('walkInPhone').value = '';
+        document.getElementById('walkInInputs').classList.remove('hidden');
+    }
+
+    function handleCustomerSelect(select) {
+        const selected = select.options[select.selectedIndex];
+        if (select.value) {
+            document.getElementById('walkInName').value = selected.getAttribute('data-name') || '';
+            document.getElementById('walkInPhone').value = selected.getAttribute('data-phone') || '';
+        } else {
+            setWalkInCustomer();
+        }
+    }
+
+    function updatePaymentStyle(radio) {
+        document.querySelectorAll('.payment-option').forEach(el => {
+            el.className = 'payment-option p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex flex-col items-center gap-1 cursor-pointer font-semibold text-xs';
+        });
+        radio.parentElement.className = 'payment-option p-2 rounded-xl border border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 flex flex-col items-center gap-1 cursor-pointer font-bold text-xs';
+    }
+
+    function handleCheckoutSubmit(e) {
+        if (cart.length === 0) {
+            e.preventDefault();
+            alert('Please add products to your cart before checking out.');
+            return false;
+        }
+        document.getElementById('cartDataInput').value = JSON.stringify(cart);
+        return true;
+    }
+</script>
+{% endblock %}

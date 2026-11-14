@@ -1,10 +1,11 @@
 from datetime import timedelta
 from decimal import Decimal
+import json
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.urls import reverse
-from .models import Category, Product, Supplier, StockTransaction
+from .models import Category, Product, Supplier, StockTransaction, Customer, SaleOrder, SaleOrderItem
 
 class InventoryUpgradeTests(TestCase):
     def setUp(self):
@@ -183,4 +184,81 @@ class InventoryUpgradeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Product Expired!')
         self.assertContains(response, '2 days ago')
+
+    def test_customer_crud_and_directory(self):
+        """Verify customer creation, directory view, and customer profile."""
+        customer = Customer.objects.create(
+            name='Acme Corp',
+            phone='012999888',
+            email='acme@example.com',
+            address='123 Commercial Blvd'
+        )
+        res_list = self.client.get(reverse('customer_list'))
+        self.assertEqual(res_list.status_code, 200)
+        self.assertContains(res_list, 'Acme Corp')
+
+        res_detail = self.client.get(reverse('customer_detail', kwargs={'pk': customer.pk}))
+        self.assertEqual(res_detail.status_code, 200)
+        self.assertContains(res_detail, 'Acme Corp')
+        self.assertContains(res_detail, '012999888')
+
+    def test_sales_order_checkout_and_stock_deduction(self):
+        """Verify POS multi-item checkout, atomic stock deduction, and printable invoice detail."""
+        customer = Customer.objects.create(
+            name='John Doe',
+            phone='098765432'
+        )
+
+        initial_qty = self.p_healthy.quantity # 50
+        cart = [
+            {
+                'product_id': self.p_healthy.pk,
+                'quantity': 5,
+                'unit_price': 12.00
+            }
+        ]
+
+        post_data = {
+            'customer': customer.pk,
+            'customer_name': '',
+            'customer_phone': '',
+            'payment_method': 'CASH',
+            'discount_amount': '2.00',
+            'tax_amount': '0.00',
+            'notes': 'Test POS order',
+            'cart_data': json.dumps(cart)
+        }
+
+        response = self.client.post(reverse('sales_order_create'), data=post_data)
+        self.assertEqual(response.status_code, 302) # Redirect to invoice detail
+
+        # Verify order created
+        order = SaleOrder.objects.first()
+        self.assertIsNotNone(order)
+        self.assertEqual(order.customer, customer)
+        self.assertEqual(order.customer_name, 'John Doe')
+        self.assertEqual(order.subtotal, Decimal('60.00')) # 5 * 12.00
+        self.assertEqual(order.discount_amount, Decimal('2.00'))
+        self.assertEqual(order.grand_total, Decimal('58.00'))
+        self.assertEqual(order.total_items_count, 5)
+
+        # Verify stock deducted
+        self.p_healthy.refresh_from_db()
+        self.assertEqual(self.p_healthy.quantity, initial_qty - 5) # 45
+
+        # Verify transaction logged
+        tx = StockTransaction.objects.filter(product=self.p_healthy, transaction_type='OUT').latest('id')
+        self.assertEqual(tx.quantity, 5)
+        self.assertEqual(tx.quantity_after, 45)
+        self.assertIn(order.invoice_no, tx.notes)
+
+        # Verify printable invoice view renders successfully
+        res_invoice = self.client.get(reverse('sales_order_detail', kwargs={'pk': order.pk}))
+        self.assertEqual(res_invoice.status_code, 200)
+        self.assertContains(res_invoice, order.invoice_no)
+        self.assertContains(res_invoice, 'John Doe')
+        self.assertContains(res_invoice, 'Drill Bit Set')
+        self.assertContains(res_invoice, '58.00')
+        self.assertContains(res_invoice, 'Print Receipt')
+
 

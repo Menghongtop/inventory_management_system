@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ order.invoice_no }} | {{ t.invoice_receipt|default:"Invoice Receipt" }}{% endblock %}
+
+{% block extra_head %}
+<style>
+@media print {
+    /* Hide non-printable app UI elements */
+    aside,
+    nav,
+    header,
+    .no-print,
+    #sidebar,
+    .sidebar-overlay {
+        display: none !important;
+    }
+
+    body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 12pt !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Expand main printable area */
+    main {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .printable-invoice-container {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        max-width: 100% !important;
+    }
+
+    .printable-card {
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    /* Ensure table borders and background print crisp */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+    th, td {
+        border-color: #e2e8f0 !important;
+    }
+
+    /* Manager only profit is hidden in print receipts */
+    .manager-profit-column {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-5xl mx-auto printable-invoice-container">
+
+    <!-- Action Bar (Screen Only) -->
+    <div class="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                <a href="{% url 'sales_order_list' %}" class="hover:underline flex items-center gap-1">
+                    <i class="fa-solid fa-receipt text-[11px]"></i>
+                    {{ t.sales_orders|default:"Sales & Invoices" }}
+                </a>
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                <span class="text-slate-600 dark:text-slate-300 font-medium">{{ order.invoice_no }}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span class="text-indigo-600 dark:text-indigo-400">{{ order.invoice_no }}</span>
+                </h1>
+                {% if order.status == 'COMPLETED' %}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center gap-1">
+                    <i class="fa-solid fa-check text-[10px]"></i> {{ order.get_status_display }}
+                </span>
+                {% elif order.status == 'REFUNDED' %}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                    {{ order.get_status_display }}
+                </span>
+                {% else %}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                    {{ order.get_status_display }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="flex items-center flex-wrap gap-2">
+            <button onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer">
+                <i class="fa-solid fa-print text-sm"></i>
+                <span>{{ t.print_receipt|default:"Print Receipt / Invoice" }}</span>
+            </button>
+            <a href="{% url 'sales_order_create' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>{{ t.new_sale|default:"New Sale (POS)" }}</span>
+            </a>
+            <a href="{% url 'sales_order_list' %}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+                <span>Back</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Official Printable Invoice Sheet -->
+    <div class="printable-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-10 shadow-sm print:p-6 print:border-none">
+
+        <!-- Top Header & Brand -->
+        <div class="flex flex-col sm:flex-row justify-between items-start gap-6 border-b border-slate-200 dark:border-slate-800 pb-6 print:pb-4">
+            <div class="space-y-1">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-xl shadow-sm print:border print:border-slate-900">
+                        <i class="fa-solid fa-boxes-stacked text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">StockPro Store</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Inventory & Point of Sale System</p>
+                    </div>
+                </div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 pt-2 space-y-0.5">
+                    <p><i class="fa-solid fa-location-dot w-4 text-slate-400"></i> Main Street Storefront, Central District</p>
+                    <p><i class="fa-solid fa-phone w-4 text-slate-400"></i> (+855) 012-345-678 | support@stockpro.io</p>
+                </div>
+            </div>
+
+            <div class="text-left sm:text-right space-y-1">
+                <span class="inline-block px-3 py-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-extrabold text-xs tracking-wider uppercase rounded-md">
+                    INVOICE / RECEIPT
+                </span>
+                <p class="text-xl font-black text-slate-900 dark:text-white">{{ order.invoice_no }}</p>
+                <div class="text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
+                    <p><span class="font-semibold text-slate-700 dark:text-slate-300">Date:</span> {{ order.created_at|date:"M d, Y h:i A" }}</p>
+                    <p><span class="font-semibold text-slate-700 dark:text-slate-300">Cashier:</span> {{ order.created_by.get_full_name|default:order.created_by.username|default:"Staff" }}</p>
+                    <p><span class="font-semibold text-slate-700 dark:text-slate-300">Payment:</span> {{ order.get_payment_method_display }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer & Order Meta Information -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 py-6 border-b border-slate-200 dark:border-slate-800 text-xs">
+            <!-- Customer Billed To -->
+            <div class="space-y-1 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+                    Billed To / Customer
+                </p>
+                <p class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user text-slate-400 text-xs"></i>
+                    {% if order.customer %}
+                    <a href="{% url 'customer_detail' pk=order.customer.pk %}" class="hover:underline text-indigo-600 dark:text-indigo-400 no-print">
+                        {{ order.customer_name }}
+                    </a>
+                    <span class="hidden print:inline">{{ order.customer_name }}</span>
+                    {% else %}
+                    {{ order.customer_name|default:"Walk-in Customer" }}
+                    {% endif %}
+                </p>
+                {% if order.customer_phone %}
+                <p class="text-slate-600 dark:text-slate-300">
+                    <span class="font-semibold">Phone:</span> {{ order.customer_phone }}
+                </p>
+                {% endif %}
+                {% if order.customer and order.customer.email %}
+                <p class="text-slate-600 dark:text-slate-300">
+                    <span class="font-semibold">Email:</span> {{ order.customer.email }}
+                </p>
+                {% endif %}
+                {% if order.customer and order.customer.address %}
+                <p class="text-slate-600 dark:text-slate-300">
+                    <span class="font-semibold">Address:</span> {{ order.customer.address }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Transaction Status & Summary -->
+            <div class="space-y-1 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+                    Order Details
+                </p>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Total Items:</span>
+                        <p class="font-bold text-slate-800 dark:text-slate-200">{{ order.total_items_count }} item{{ order.total_items_count|pluralize }}</p>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Status:</span>
+                        <p class="font-bold text-emerald-600 dark:text-emerald-400">{{ order.get_status_display }}</p>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Payment Method:</span>
+                        <p class="font-bold text-slate-800 dark:text-slate-200">{{ order.get_payment_method_display }}</p>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Invoice Ref:</span>
+                        <p class="font-mono text-slate-800 dark:text-slate-200">#{{ order.pk }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line Items Table -->
+        <div class="py-6 overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="border-b-2 border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold uppercase text-[11px]">
+                        <th class="py-3 px-2 w-10 text-center">#</th>
+                        <th class="py-3 px-3">Item Description</th>
+                        <th class="py-3 px-3 text-right">Unit Price</th>
+                        <th class="py-3 px-3 text-center">Qty</th>
+                        <th class="py-3 px-3 text-right">Line Total</th>
+                        {% if is_manager %}
+                        <th class="py-3 px-3 text-right manager-profit-column text-emerald-600 dark:text-emerald-400 no-print">
+                            Est. Profit
+                        </th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                    {% for item in order.items.all %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td class="py-3 px-2 text-center text-slate-400 font-mono">{{ forloop.counter }}</td>
+                        <td class="py-3 px-3">
+                            <div class="font-bold text-slate-900 dark:text-white">
+                                {% if item.product %}
+                                <a href="{% url 'product_detail' pk=item.product.pk %}" class="hover:underline text-slate-900 dark:text-white no-print">
+                                    {{ item.product_name }}
+                                </a>
+                                <span class="hidden print:inline">{{ item.product_name }}</span>
+                                {% else %}
+                                {{ item.product_name }}
+                                {% endif %}
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                                SKU: {{ item.product_sku|default:"N/A" }}
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 text-right font-medium text-slate-700 dark:text-slate-300">
+                            ${{ item.unit_selling_price|floatformat:2 }}
+                        </td>
+                        <td class="py-3 px-3 text-center font-bold text-slate-900 dark:text-white">
+                            {{ item.quantity }}
+                        </td>
+                        <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">
+                            ${{ item.line_total|floatformat:2 }}
+                        </td>
+                        {% if is_manager %}
+                        <td class="py-3 px-3 text-right font-semibold text-emerald-600 dark:text-emerald-400 manager-profit-column no-print">
+                            +${{ item.line_profit|floatformat:2 }}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-6 text-center text-slate-400">
+                            No items recorded on this order.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Financial Summary Block -->
+        <div class="border-t border-slate-200 dark:border-slate-800 pt-4 flex flex-col sm:flex-row justify-between items-start gap-6">
+            <!-- Left Side: Order Notes & Thank You -->
+            <div class="w-full sm:w-1/2 space-y-3">
+                {% if order.notes %}
+                <div class="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-200">
+                    <p class="font-bold flex items-center gap-1.5 mb-0.5">
+                        <i class="fa-solid fa-note-sticky text-amber-600"></i> Order Notes
+                    </p>
+                    <p class="whitespace-pre-line">{{ order.notes }}</p>
+                </div>
+                {% endif %}
+
+                <div class="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                    <p class="font-semibold text-slate-700 dark:text-slate-300">Terms & Conditions:</p>
+                    <p>1. Returns accepted within 7 days with valid receipt & original packaging.</p>
+                    <p>2. Perishable goods cannot be returned once unsealed.</p>
+                    <p class="pt-2 font-medium italic text-slate-600 dark:text-slate-400">
+                        Thank you for your purchase! We appreciate your business.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Right Side: Totals Computation -->
+            <div class="w-full sm:w-80 space-y-2 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                    <span>Subtotal:</span>
+                    <span class="font-medium text-slate-900 dark:text-white">${{ order.subtotal|floatformat:2 }}</span>
+                </div>
+                
+                {% if order.discount_amount > 0 %}
+                <div class="flex justify-between items-center text-rose-600 dark:text-rose-400">
+                    <span>Discount:</span>
+                    <span class="font-medium">-${{ order.discount_amount|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+
+                {% if order.tax_amount > 0 %}
+                <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                    <span>Tax:</span>
+                    <span class="font-medium text-slate-900 dark:text-white">+${{ order.tax_amount|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+
+                <div class="border-t border-slate-300 dark:border-slate-700 pt-2 flex justify-between items-center text-base font-extrabold text-slate-900 dark:text-white">
+                    <span>Grand Total:</span>
+                    <span class="text-indigo-600 dark:text-indigo-400">${{ order.grand_total|floatformat:2 }}</span>
+                </div>
+
+                {% if is_manager %}
+                <div class="border-t border-dashed border-slate-300 dark:border-slate-700 pt-2 flex justify-between items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400 manager-profit-column no-print">
+                    <span class="flex items-center gap-1">
+                        <i class="fa-solid fa-chart-line text-[11px]"></i> Realized Profit:
+                    </span>
+                    <span>+${{ order.total_profit|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+
+                <div class="pt-2 text-[11px] text-center text-slate-400 border-t border-slate-200 dark:border-slate-700/60">
+                    Paid via <span class="font-bold text-slate-600 dark:text-slate-300">{{ order.get_payment_method_display }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receipt Print Footer (Print Only) -->
+        <div class="hidden print:block text-center text-slate-400 text-[10px] mt-8 pt-4 border-t border-slate-200">
+            StockPro POS System &bull; Printed on {% now "Y-m-d H:i" %} &bull; Invoice {{ order.invoice_no }}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
